@@ -7,10 +7,13 @@ function App() {
   const [greetMsg, setGreetMsg] = useState("");
   const [name, setName] = useState("");
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  async function sendToRust() {
+    const response = await invoke<string>("send_message", {
+        message: `"${name}" says hi`,
+    });
+
+    console.log(response);
+}
 
   return (
     <main className="container">
@@ -33,7 +36,7 @@ function App() {
         className="row"
         onSubmit={(e) => {
           e.preventDefault();
-          greet();
+          sendToRust();
         }}
       >
         <input
