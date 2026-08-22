@@ -6,6 +6,8 @@ mod state;
 mod adapters;
 mod devices;
 
+#[cfg(test)]
+mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

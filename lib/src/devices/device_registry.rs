@@ -72,8 +72,36 @@ impl DeviceRegistry {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn add_new_registry
+    use crate::utils::test_utils::{
+        FakeDisplayAdapter,
+        get_test_device_info,
+    };
+
+    #[test]
+    fn add_new_registry_device() {
+        let mut registry = DeviceRegistry::new();
+
+        let info = get_test_device_info();
+
+        let adapter = FakeDisplayAdapter {
+            info: info.clone(),
+            connected: false,
+        };
+
+        let session = DeviceSession::new(
+            Box::new(adapter)
+        );
+
+        let device_id = info.id.clone();
+
+        registry.add(
+            device_id.clone(),
+            session,
+        );
+
+        assert_eq!(registry.len(), 1);
+        assert!(registry.contains(&device_id));
+    }
 }
 
 // pub fn add(
