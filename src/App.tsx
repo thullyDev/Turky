@@ -8,7 +8,7 @@ function App() {
   const [name, setName] = useState("");
 
   async function sendToRust() {
-    const response = await invoke<string>("send_message", {
+    const response = await invoke<string>("render_text", {
         message: `"${name}" says hi`,
     });
 
