@@ -27,6 +27,7 @@ mod tests {
 
     struct FakeDisplayAdapter {
         info: DeviceInfo,
+        connected: bool,
     }
 
     impl DisplayAdapter for FakeDisplayAdapter {
