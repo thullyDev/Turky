@@ -5,6 +5,7 @@ mod services;
 mod state;
 mod adapters;
 mod devices;
+mod factories;
 
 #[cfg(test)]
 mod utils;
