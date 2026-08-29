@@ -1,6 +1,6 @@
 use crate::devices::device_model::DeviceModel::Turzx;
 use crate::adapters::display_adapter::DisplayAdapter;
-use crate::adapters::turzx_device_adapter::TurzxDeviceAdapter;
+use crate::adapters::devices::turzx_device_adapter::TurzxDeviceAdapter;
 
 pub struct DeviceFactory;
 

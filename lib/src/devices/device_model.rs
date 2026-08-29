@@ -6,7 +6,7 @@ pub enum DeviceModel {
 impl DeviceModel {
     pub fn vendor_id(&self) -> u16 {
         match self {
-            Self::Turzx => 0x0088,
+            Self::Turzx => 0x1CBE,
         }
     }
 
