@@ -22,6 +22,7 @@ pub enum AdapterError {
     SendFailed,
     ClearFailed,
     UnsupportedOperation,
+    TransferFailed,
 }
 
 #[cfg(test)]

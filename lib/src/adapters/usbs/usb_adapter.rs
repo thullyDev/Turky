@@ -1,60 +1,36 @@
-use crate::adapters::usbs::usb_errors::UsbError;
+use crate::adapters::usbs::usb_connection::UsbConnection;
 use crate::adapters::usbs::usb_device_info::UsbDeviceInfo;
+use crate::adapters::usbs::usb_errors::UsbError;
 
 pub trait UsbAdapter {
-    fn discover_devices(&self) -> Result<Vec<UsbDeviceInfo>, UsbError>;
-
-    fn open(&mut self) -> Result<(), UsbError>;
-
-    fn close(&mut self);
-
-    fn write(
-        &mut self,
-        endpoint: u8,
-        data: &[u8],
-    ) -> Result<usize, UsbError>;
-
-    fn read(
-        &mut self,
-        endpoint: u8,
-        data: &mut [u8],
-    ) -> Result<usize, UsbError>;
+    fn discover_devices(
+        &self,
+    ) -> Result<Vec<UsbDeviceInfo>, UsbError>;
+    
+    fn connect(
+        &self,
+        device: &UsbDeviceInfo,
+    ) -> Result<Box<dyn UsbConnection>, UsbError>;
 }
-
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
-    struct FakeUsbAdapter {
-        opened: bool,
-        devices: Vec<UsbDeviceInfo>,
-    }
+    use crate::adapters::usbs::usb_connection::UsbConnection;
 
-    impl FakeUsbAdapter {
-        fn new() -> Self {
-            Self {
-                opened: false,
-                devices: Vec::new(),
-            }
-        }
-    }
 
-    impl UsbAdapter for FakeUsbAdapter {
-        fn discover_devices(
-            &self,
-        ) -> Result<Vec<UsbDeviceInfo>, UsbError> {
-            Ok(self.devices.clone())
-        }
+    struct FakeUsbConnection;
+
+
+    impl UsbConnection for FakeUsbConnection {
 
         fn open(&mut self) -> Result<(), UsbError> {
-            self.opened = true;
             Ok(())
         }
 
-        fn close(&mut self) {
-            self.opened = false;
-        }
+        fn close(&mut self) {}
 
         fn write(
             &mut self,
@@ -69,66 +45,73 @@ mod tests {
             _endpoint: u8,
             data: &mut [u8],
         ) -> Result<usize, UsbError> {
-            for byte in data.iter_mut() {
-                *byte = 0;
-            }
-
             Ok(data.len())
         }
     }
 
-    #[test]
-    fn opens_usb_adapter() {
-        let mut adapter = FakeUsbAdapter::new();
 
-        let result = adapter.open();
-
-        assert!(result.is_ok());
-        assert!(adapter.opened);
+    struct FakeUsbAdapter {
+        devices: Vec<UsbDeviceInfo>,
     }
 
-    #[test]
-    fn closes_usb_adapter() {
-        let mut adapter = FakeUsbAdapter::new();
 
-        adapter.open().unwrap();
-        adapter.close();
+    impl FakeUsbAdapter {
 
-        assert!(!adapter.opened);
+        fn new() -> Self {
+            Self {
+                devices: Vec::new(),
+            }
+        }
     }
 
-    #[test]
-    fn writes_data_to_endpoint() {
-        let mut adapter = FakeUsbAdapter::new();
 
-        let data = [1, 2, 3, 4];
+    impl UsbAdapter for FakeUsbAdapter {
 
-        let result = adapter.write(
-            0x01,
-            &data,
-        );
+        fn discover_devices(
+            &self,
+        ) -> Result<Vec<UsbDeviceInfo>, UsbError> {
+            Ok(self.devices.clone())
+        }
 
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 4);
+
+        fn connect(
+            &self,
+            _device: &UsbDeviceInfo,
+        ) -> Result<Box<dyn UsbConnection>, UsbError> {
+
+            Ok(Box::new(
+                FakeUsbConnection
+            ))
+        }
     }
 
+
     #[test]
-    fn reads_data_from_endpoint() {
-        let mut adapter = FakeUsbAdapter::new();
+    fn discovers_usb_devices() {
 
-        let mut data = [1, 2, 3, 4];
+        let adapter = FakeUsbAdapter::new();
 
-        let result = adapter.read(
-            0x81,
-            &mut data,
-        );
+        let result = adapter.discover_devices();
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 4);
+        assert!(result.unwrap().is_empty());
+    }
 
-        assert_eq!(
-            data,
-            [0, 0, 0, 0]
-        );
+
+    #[test]
+    fn connects_to_usb_device() {
+
+        let adapter = FakeUsbAdapter::new();
+
+        let device = UsbDeviceInfo {
+            vendor_id: 0x1CBE,
+            product_id: 0x0088,
+            bus_number: 1,
+            address: 1,
+        };
+
+        let result = adapter.connect(&device);
+
+        assert!(result.is_ok());
     }
 }

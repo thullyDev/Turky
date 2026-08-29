@@ -28,7 +28,12 @@ impl DeviceService {
         let devices = self.usb.discover_devices().unwrap();
 
         for device in devices {
-            let adapter = self.factory.create_device(device.vendor_id, device.product_id);
+            let connection = self
+                .usb
+                .connect(&device)
+                .expect("failed to connect to USB device");
+
+            let adapter = self.factory.create_device(device, connection);
 
             if let Some(adapter) = adapter {
                 let device_id = adapter.info().id.clone();
@@ -39,32 +44,57 @@ impl DeviceService {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
+
     use super::*;
-    use crate::{adapters::usbs::{usb_device_info::UsbDeviceInfo, usb_errors::UsbError}, devices::device_model::DeviceModel::Turzx};
-    struct FakeUsbAdapter {
-        devices: Vec<UsbDeviceInfo>,
+
+    use crate::adapters::usbs::{
+        usb_connection::UsbConnection,
+        usb_device_info::UsbDeviceInfo,
+        usb_errors::UsbError,
+    };
+
+    use crate::devices::device_model::DeviceModel::Turzx;
+
+
+    struct FakeUsbConnection {
+        opened: bool,
     }
 
-    impl UsbAdapter for FakeUsbAdapter {
-        fn discover_devices(
-            &self,
-        ) -> Result<Vec<UsbDeviceInfo>, UsbError> {
-            Ok(self.devices.clone())
+
+    impl FakeUsbConnection {
+
+        fn new() -> Self {
+            Self {
+                opened: false,
+            }
         }
+    }
+
+
+    impl UsbConnection for FakeUsbConnection {
 
         fn open(&mut self) -> Result<(), UsbError> {
+            self.opened = true;
             Ok(())
         }
 
-        fn close(&mut self) {}
+        fn close(&mut self) {
+            self.opened = false;
+        }
 
         fn write(
             &mut self,
             _endpoint: u8,
             data: &[u8],
         ) -> Result<usize, UsbError> {
+
+            if !self.opened {
+                return Err(UsbError::NotOpen);
+            }
+
             Ok(data.len())
         }
 
@@ -73,13 +103,46 @@ mod tests {
             _endpoint: u8,
             data: &mut [u8],
         ) -> Result<usize, UsbError> {
+
+            if !self.opened {
+                return Err(UsbError::NotOpen);
+            }
+
             Ok(data.len())
+        }
+    }
+
+
+    struct FakeUsbAdapter {
+        devices: Vec<UsbDeviceInfo>,
+    }
+
+
+    impl UsbAdapter for FakeUsbAdapter {
+
+        fn discover_devices(
+            &self,
+        ) -> Result<Vec<UsbDeviceInfo>, UsbError> {
+
+            Ok(self.devices.clone())
+        }
+
+
+        fn connect(
+            &self,
+            _device: &UsbDeviceInfo,
+        ) -> Result<Box<dyn UsbConnection>, UsbError> {
+
+            Ok(Box::new(
+                FakeUsbConnection::new()
+            ))
         }
     }
 
 
     #[test]
     fn creates_device_service() {
+
         let registry = DeviceRegistry::new();
         let factory = DeviceFactory::new();
 
@@ -94,8 +157,10 @@ mod tests {
         );
     }
 
+
     #[test]
     fn discovers_connected_devices() {
+
         let factory = DeviceFactory::new();
         let registry = DeviceRegistry::new();
 
@@ -104,6 +169,8 @@ mod tests {
                 UsbDeviceInfo {
                     vendor_id: Turzx.vendor_id(),
                     product_id: Turzx.product_id(),
+                    bus_number: 1,
+                    address: 10,
                 },
             ],
         };
@@ -116,6 +183,11 @@ mod tests {
 
         service.discover_devices();
 
-        assert_eq!(service.registry.len(), 1);
+        assert_eq!(
+            service.registry.len(),
+            1
+        );
     }
 }
+
+
