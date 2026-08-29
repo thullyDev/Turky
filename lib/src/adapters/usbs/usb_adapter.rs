@@ -2,17 +2,17 @@ use crate::adapters::usbs::usb_connection::UsbConnection;
 use crate::adapters::usbs::usb_device_info::UsbDeviceInfo;
 use crate::adapters::usbs::usb_errors::UsbError;
 
-pub trait UsbAdapter {
+pub trait UsbAdapter: Send + Sync {
+
     fn discover_devices(
         &self,
     ) -> Result<Vec<UsbDeviceInfo>, UsbError>;
-    
+
     fn connect(
         &self,
-        device: &UsbDeviceInfo,
+        info: &UsbDeviceInfo,
     ) -> Result<Box<dyn UsbConnection>, UsbError>;
 }
-
 #[cfg(test)]
 mod tests {
 

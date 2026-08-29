@@ -1,18 +1,30 @@
 use crate::devices::device_info::DeviceInfo;
 use crate::devices::device_id::DeviceId;
 
-pub trait DisplayAdapter {
+pub trait DisplayAdapter: Send + Sync {
+
     fn info(&self) -> &DeviceInfo;
-    
-    fn connect(&mut self) -> Result<(), AdapterError>;
-    
-    fn disconnect(&mut self) -> Result<(), AdapterError>;
 
-    fn send_frame(&mut self, frame: &[u8]) -> Result<(), AdapterError>;
+    fn connect(
+        &mut self,
+    ) -> Result<(), AdapterError>;
 
-    fn clear(&mut self) -> Result<(), AdapterError>;
-    
-    fn is_connected(&self) -> bool;
+    fn disconnect(
+        &mut self,
+    ) -> Result<(), AdapterError>;
+
+    fn send_frame(
+        &mut self,
+        frame: &[u8],
+    ) -> Result<(), AdapterError>;
+
+    fn clear(
+        &mut self,
+    ) -> Result<(), AdapterError>;
+
+    fn is_connected(
+        &self,
+    ) -> bool;
 }
 
 #[derive(Debug)]

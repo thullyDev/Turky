@@ -1,10 +1,14 @@
 use crate::adapters::usbs::usb_errors::UsbError;
 
-pub trait UsbConnection {
+pub trait UsbConnection: Send + Sync {
 
-    fn open(&mut self) -> Result<(), UsbError>;
+    fn open(
+        &mut self,
+    ) -> Result<(), UsbError>;
 
-    fn close(&mut self);
+    fn close(
+        &mut self,
+    );
 
     fn write(
         &mut self,
@@ -18,7 +22,6 @@ pub trait UsbConnection {
         data: &mut [u8],
     ) -> Result<usize, UsbError>;
 }
-
 
 #[cfg(test)]
 mod tests {
