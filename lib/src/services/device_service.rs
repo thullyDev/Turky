@@ -35,12 +35,20 @@ impl DeviceService {
 
             let adapter = self.factory.create_device(device, connection);
 
-            if let Some(adapter) = adapter {
+            if let Some(mut adapter) = adapter {
+                adapter
+                    .connect()
+                    .expect("failed to connect display adapter");
+
                 let device_id = adapter.info().id.clone();
                 let session = DeviceSession::new(adapter);
                 self.registry.add(device_id, session);
             }
         }
+    }
+
+    pub fn registry(&mut self) -> &mut DeviceRegistry {
+        &mut self.registry
     }
 }
 
@@ -65,7 +73,6 @@ mod tests {
 
 
     impl FakeUsbConnection {
-
         fn new() -> Self {
             Self {
                 opened: false,

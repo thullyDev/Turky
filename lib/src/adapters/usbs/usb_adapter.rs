@@ -3,7 +3,6 @@ use crate::adapters::usbs::usb_device_info::UsbDeviceInfo;
 use crate::adapters::usbs::usb_errors::UsbError;
 
 pub trait UsbAdapter: Send + Sync {
-
     fn discover_devices(
         &self,
     ) -> Result<Vec<UsbDeviceInfo>, UsbError>;
@@ -13,16 +12,13 @@ pub trait UsbAdapter: Send + Sync {
         info: &UsbDeviceInfo,
     ) -> Result<Box<dyn UsbConnection>, UsbError>;
 }
+
 #[cfg(test)]
 mod tests {
-
     use super::*;
-
     use crate::adapters::usbs::usb_connection::UsbConnection;
 
-
     struct FakeUsbConnection;
-
 
     impl UsbConnection for FakeUsbConnection {
 
@@ -56,7 +52,6 @@ mod tests {
 
 
     impl FakeUsbAdapter {
-
         fn new() -> Self {
             Self {
                 devices: Vec::new(),
@@ -66,7 +61,6 @@ mod tests {
 
 
     impl UsbAdapter for FakeUsbAdapter {
-
         fn discover_devices(
             &self,
         ) -> Result<Vec<UsbDeviceInfo>, UsbError> {
@@ -88,9 +82,7 @@ mod tests {
 
     #[test]
     fn discovers_usb_devices() {
-
         let adapter = FakeUsbAdapter::new();
-
         let result = adapter.discover_devices();
 
         assert!(result.is_ok());
@@ -100,9 +92,7 @@ mod tests {
 
     #[test]
     fn connects_to_usb_device() {
-
         let adapter = FakeUsbAdapter::new();
-
         let device = UsbDeviceInfo {
             vendor_id: 0x1CBE,
             product_id: 0x0088,

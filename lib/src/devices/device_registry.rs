@@ -65,6 +65,10 @@ impl DeviceRegistry {
     pub fn is_empty(&self) -> bool {
         self.devices.is_empty()
     }
+
+    pub fn first_mut(&mut self) -> Option<&mut DeviceSession> {
+        self.devices.values_mut().next()
+    }
 }
 
 
@@ -330,5 +334,42 @@ mod tests {
         );
 
         assert_eq!(registry.is_empty(), false);
+    }
+
+    #[test]
+    fn gets_first_device_mut() {
+        let mut registry = DeviceRegistry::new();
+
+        let info = get_test_device_info();
+
+        let adapter = FakeDisplayAdapter {
+            info: info.clone(),
+            connected: false,
+        };
+
+        let session = DeviceSession::new(
+            Box::new(adapter)
+        );
+
+        let device_id = info.id.clone();
+
+        registry.add(
+            device_id,
+            session,
+        );
+
+        let device = registry
+            .first_mut()
+            .expect("device should exist");
+
+        assert_eq!(
+            device.info.id,
+            info.id
+        );
+
+        assert_eq!(
+            device.info.name,
+            info.name
+        );
     }
 }

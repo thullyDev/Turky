@@ -87,20 +87,29 @@ impl RusbConnection {
 }
 
 impl UsbConnection for RusbConnection {
-    fn open(
-        &mut self,
-    ) -> Result<(), UsbError> {
+    fn open(&mut self) -> Result<(), UsbError> {
+        let mut handle = self.device.open().map_err(|error| {
+            match error {
+                rusb::Error::NoDevice => UsbError::DeviceNotFound,
+                rusb::Error::Access => UsbError::AccessDenied,
+                rusb::Error::Busy => UsbError::Busy,
+                _ => UsbError::OpenFailed,
+            }
+        })?;
 
-        let handle = self
-            .device
-            .open()
-            .map_err(|_| UsbError::DeviceNotFound)?;
+        handle
+            .claim_interface(0)
+            .map_err(|error| match error {
+                rusb::Error::Busy => UsbError::Busy,
+                rusb::Error::Access => UsbError::AccessDenied,
+                _ => UsbError::OpenFailed,
+            })?;
 
         self.handle = Some(handle);
 
         Ok(())
     }
-
+    
     fn close(
         &mut self,
     ) {

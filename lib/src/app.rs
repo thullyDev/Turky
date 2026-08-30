@@ -12,12 +12,13 @@ pub fn run() {
     );
     let registry = DeviceRegistry::new();
     let factory = DeviceFactory::new();
-    let device_service =
+    let mut device_service =
         services::device_service::DeviceService::new(
             registry,
             factory,
             usb,
         );
+    device_service.discover_devices();
     let display_service =
         services::display_service::DisplayService::new(
             device_service,

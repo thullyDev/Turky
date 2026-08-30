@@ -6,7 +6,12 @@ pub fn render_text(
     message: String,
     state: tauri::State<'_, AppState>,
 ) -> RenderImageTextResponse {
-    state.display.render_text_image(message)
+    let mut display = state
+        .display
+        .lock()
+        .expect("Failed to lock DisplayService");
+
+    display.render_text_image(message)
 }
 
 #[test]
