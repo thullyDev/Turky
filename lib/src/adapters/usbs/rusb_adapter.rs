@@ -88,7 +88,13 @@ impl RusbConnection {
 
 impl UsbConnection for RusbConnection {
     fn open(&mut self) -> Result<(), UsbError> {
+        println!("=== USB OPEN ===");
+
+        println!("Opening device...");
+
         let mut handle = self.device.open().map_err(|error| {
+            println!("OPEN ERROR: {:?}", error);
+
             match error {
                 rusb::Error::NoDevice => UsbError::DeviceNotFound,
                 rusb::Error::Access => UsbError::AccessDenied,
@@ -97,20 +103,68 @@ impl UsbConnection for RusbConnection {
             }
         })?;
 
-        handle
-            .claim_interface(0)
-            .map_err(|error| match error {
+        println!("Device opened successfully");
+
+        println!("Setting configuration 1...");
+
+        handle.set_active_configuration(1).map_err(|error| {
+            println!("CONFIG ERROR: {:?}", error);
+            UsbError::OpenFailed
+        })?;
+
+        println!("Configuration set successfully");
+
+        let config = self.device.active_config_descriptor()
+            .map_err(|error| {
+                println!("DESCRIPTOR ERROR: {:?}", error);
+                UsbError::OpenFailed
+            })?;
+
+        println!("=== USB DESCRIPTORS ===");
+
+        for interface in config.interfaces() {
+            for descriptor in interface.descriptors() {
+                println!(
+                    "Interface {} | Alternate {} | Class 0x{:02X}",
+                    descriptor.interface_number(),
+                    descriptor.setting_number(),
+                    descriptor.class_code()
+                );
+
+                for endpoint in descriptor.endpoint_descriptors() {
+                    println!(
+                        "Endpoint 0x{:02X} | Direction: {:?} | Type: {:?} | Max Packet: {}",
+                        endpoint.address(),
+                        endpoint.direction(),
+                        endpoint.transfer_type(),
+                        endpoint.max_packet_size()
+                    );
+                }
+            }
+        }
+
+        println!("Claiming interface 0...");
+
+        handle.claim_interface(0).map_err(|error| {
+            println!("CLAIM ERROR: {:?}", error);
+
+            match error {
                 rusb::Error::Busy => UsbError::Busy,
                 rusb::Error::Access => UsbError::AccessDenied,
                 _ => UsbError::OpenFailed,
-            })?;
+            }
+        })?;
+
+        println!("Interface 0 claimed successfully");
 
         self.handle = Some(handle);
+
+        println!("=== USB OPEN COMPLETE ===");
 
         Ok(())
     }
     
-    fn close(
+    fn close(   
         &mut self,
     ) {
         self.handle = None;
@@ -121,19 +175,31 @@ impl UsbConnection for RusbConnection {
         endpoint: u8,
         data: &[u8],
     ) -> Result<usize, UsbError> {
-
         let handle = self
             .handle
             .as_mut()
             .ok_or(UsbError::NotOpen)?;
+        
+        match handle.write_bulk(
+            endpoint,
+            data,
+            std::time::Duration::from_secs(1),
+        ) {
+            Ok(size) => {
+                println!("RUSB WRITE SUCCESS: {} bytes", size);
+                Ok(size)
+            }
 
-        handle
-            .write_bulk(
-                endpoint,
-                data,
-                std::time::Duration::from_secs(1),
-            )
-            .map_err(|_| UsbError::TransferFailed)
+            Err(error) => {
+                println!("==============================");
+                println!("RUSB WRITE FAILED");
+                println!("ERROR TYPE: {}", std::any::type_name_of_val(&error));
+                println!("ERROR: {:?}", error);
+                println!("==============================");
+
+                Err(UsbError::TransferFailed)
+            }
+        }
     }
 
     fn read(

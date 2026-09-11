@@ -32,10 +32,10 @@ impl TurzxDeviceAdapter {
         Self {
             info: DeviceInfo {
                 id: DeviceId("turzx".to_string()),
-                name: "TURZX1.0".to_string(),
+                name: "TURZX8.8".to_string(),
                 vendor_id: info.vendor_id,
                 product_id: info.product_id,
-                width: 320,
+                width: 1920,
                 height: 480,
             },
             connection,
@@ -110,7 +110,6 @@ impl TurzxDeviceAdapter {
 
         result
     }
-
 }
 
 impl DisplayAdapter for TurzxDeviceAdapter {

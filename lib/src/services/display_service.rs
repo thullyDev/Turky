@@ -1,5 +1,11 @@
 use ab_glyph::FontRef;
-use image::{ImageBuffer, Rgba, RgbaImage};
+use image::{
+    codecs::png::PngEncoder,
+    ImageBuffer,
+    ImageEncoder,
+    Rgba,
+    RgbaImage,
+};
 use imageproc::drawing::draw_text_mut;
 use crate::{
     schemas::display_schemas::RenderImageTextResponse,
@@ -28,20 +34,19 @@ impl DisplayService {
             image.width(),
             image.height()
         );
-        let registry = self
-            .device_serv
-            .registry();
-        
+
+        let png = self.image_to_png(&image);
+
+        println!("PNG size: {} bytes", png.len());
+
+        let registry = self.device_serv.registry();
+
         println!("Length ===> {}", registry.len());
 
-        if let Some(device) = registry
-            .first_mut()
-        {
-            let frame = image.as_raw();
-
+        if let Some(device) = registry.first_mut() {
             device
                 .adapter
-                .send_frame(frame)
+                .send_frame(&png)
                 .expect("Failed to send frame");
         } else {
             println!("No display device available");
@@ -52,9 +57,10 @@ impl DisplayService {
         }
     }
 
+
     fn text_to_image(&self, message: &str) -> RgbaImage {
-        let width = 320;
-        let height = 240;
+        let width = 480;
+        let height = 1920;
 
         let mut image = ImageBuffer::from_pixel(
             width,
@@ -71,13 +77,31 @@ impl DisplayService {
             &mut image,
             Rgba([255, 255, 255, 255]),
             20,
-            20,
-            32.0,
+            800,
+            80.0,
             &font,
             message,
         );
 
         image
+    }
+
+    // TODO: write tests for this method
+    fn image_to_png(&self, image: &RgbaImage) -> Vec<u8> {
+        let mut png = Vec::new();
+
+        let encoder = PngEncoder::new(&mut png);
+
+        encoder
+            .write_image(
+                image.as_raw(),
+                image.width(),
+                image.height(),
+                image::ExtendedColorType::Rgba8,
+            )
+            .expect("Failed to encode image as PNG");
+
+        png
     }
 }
 
@@ -213,5 +237,69 @@ mod tests {
             result.message,
             "Hello"
         );
+    }
+
+    #[test]
+    fn encodes_image_to_png() {
+        let registry = DeviceRegistry::new();
+        let factory = DeviceFactory::new();
+        let usb = FakeUsbAdapter {
+            devices: vec![],
+        };
+
+        let device_service = DeviceService::new(
+            registry,
+            factory,
+            Box::new(usb),
+        );
+
+        let service = DisplayService::new(device_service);
+
+        let image = RgbaImage::from_pixel(
+            480,
+            1920,
+            Rgba([255, 0, 0, 255]),
+        );
+
+        let png = service.image_to_png(&image);
+
+        // PNG signature
+        assert_eq!(
+            &png[..8],
+            &[137, 80, 78, 71, 13, 10, 26, 10]
+        );
+
+        assert!(!png.is_empty());
+    }
+    
+    #[test]
+    fn png_preserves_image_dimensions() {
+        let registry = DeviceRegistry::new();
+        let factory = DeviceFactory::new();
+        let usb = FakeUsbAdapter {
+            devices: vec![],
+        };
+
+        let device_service = DeviceService::new(
+            registry,
+            factory,
+            Box::new(usb),
+        );
+
+        let service = DisplayService::new(device_service);
+
+        let image = RgbaImage::from_pixel(
+            480,
+            1920,
+            Rgba([255, 255, 255, 255]),
+        );
+
+        let png = service.image_to_png(&image);
+
+        let decoded = image::load_from_memory(&png)
+            .expect("Failed to decode PNG");
+
+        assert_eq!(decoded.width(), 480);
+        assert_eq!(decoded.height(), 1920);
     }
 }
