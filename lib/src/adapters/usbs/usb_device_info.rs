@@ -12,7 +12,6 @@ mod tests {
 
     #[test]
     fn creates_usb_device_info() {
-
         let device = UsbDeviceInfo {
             vendor_id: 0x1CBE,
             product_id: 0x0088,

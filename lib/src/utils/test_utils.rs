@@ -1,14 +1,8 @@
 #[cfg(test)]
-use crate::adapters::display_adapter::{
-    AdapterError,
-    DisplayAdapter,
-};
+use crate::adapters::display_adapter::{AdapterError, DisplayAdapter};
 
 #[cfg(test)]
-use crate::devices::{
-    device_id::DeviceId,
-    device_info::DeviceInfo,
-};
+use crate::devices::{device_id::DeviceId, device_info::DeviceInfo};
 
 #[cfg(test)]
 pub struct FakeDisplayAdapter {
@@ -32,10 +26,7 @@ impl DisplayAdapter for FakeDisplayAdapter {
         Ok(())
     }
 
-    fn send_frame(
-        &mut self,
-        _frame: &[u8],
-    ) -> Result<(), AdapterError> {
+    fn send_frame(&mut self, _frame: &[u8]) -> Result<(), AdapterError> {
         Ok(())
     }
 

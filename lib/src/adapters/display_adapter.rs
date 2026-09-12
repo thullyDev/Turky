@@ -1,36 +1,25 @@
-use crate::devices::device_info::DeviceInfo;
 use crate::devices::device_id::DeviceId;
+use crate::devices::device_info::DeviceInfo;
 
 pub trait DisplayAdapter: Send + Sync {
-
     fn info(&self) -> &DeviceInfo;
 
-    fn connect(
-        &mut self,
-    ) -> Result<(), AdapterError>;
+    fn connect(&mut self) -> Result<(), AdapterError>;
 
-    fn disconnect(
-        &mut self,
-    ) -> Result<(), AdapterError>;
+    fn disconnect(&mut self) -> Result<(), AdapterError>;
 
-    fn send_frame(
-        &mut self,
-        frame: &[u8],
-    ) -> Result<(), AdapterError>;
+    fn send_frame(&mut self, frame: &[u8]) -> Result<(), AdapterError>;
 
-    fn clear(
-        &mut self,
-    ) -> Result<(), AdapterError>;
+    fn clear(&mut self) -> Result<(), AdapterError>;
 
-    fn is_connected(
-        &self,
-    ) -> bool;
+    fn is_connected(&self) -> bool;
 }
 
 #[derive(Debug)]
 pub enum AdapterError {
     ConnectionFailed,
     Disconnected,
+    DeviceBusy,
     SendFailed,
     ClearFailed,
     UnsupportedOperation,
@@ -72,15 +61,11 @@ mod tests {
             Ok(())
         }
 
-
         fn is_connected(&self) -> bool {
             self.connected
         }
 
-        fn send_frame(
-            &mut self,
-            _frame: &[u8],
-        ) -> Result<(), AdapterError> {
+        fn send_frame(&mut self, _frame: &[u8]) -> Result<(), AdapterError> {
             if !self.connected {
                 return Err(AdapterError::Disconnected);
             }
@@ -128,5 +113,4 @@ mod tests {
         assert_eq!(adapter.info().vendor_id, 0x1234);
         assert_eq!(adapter.info().product_id, 0x5678);
     }
-
 }

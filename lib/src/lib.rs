@@ -1,11 +1,11 @@
+mod adapters;
 mod app;
 mod commands;
+mod devices;
+mod factories;
 mod schemas;
 mod services;
 mod state;
-mod adapters;
-mod devices;
-mod factories;
 
 #[cfg(test)]
 mod utils;
