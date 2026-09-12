@@ -2,11 +2,10 @@ use crate::schemas::display_schemas::RenderImageTextResponse;
 use crate::state::AppState;
 
 #[tauri::command]
-pub fn render_text(
-    message: String,
-    state: tauri::State<'_, AppState>,
-) -> RenderImageTextResponse {
-    state.display.render_text_image(message)
+pub fn render_text(message: String, state: tauri::State<'_, AppState>) -> RenderImageTextResponse {
+    let mut display = state.display.lock().expect("Failed to lock DisplayService");
+
+    display.render_text_image(message)
 }
 
 #[test]
