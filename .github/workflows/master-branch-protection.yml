@@ -1,0 +1,21 @@
+name: Master Branch Protection
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  validate-source:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check source branch
+        run: |
+          if [ "${{ github.head_ref }}" != "development" ]; then
+            echo "❌ Only development can be merged into master."
+            echo "Source branch: ${{ github.head_ref }}"
+            exit 1
+          fi
+
+          echo "✅ development is allowed to merge into master."
