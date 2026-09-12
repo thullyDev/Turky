@@ -7,15 +7,10 @@ pub struct DeviceSession {
 }
 
 impl DeviceSession {
-    pub fn new(
-        adapter: Box<dyn DisplayAdapter>,
-    ) -> Self {
+    pub fn new(adapter: Box<dyn DisplayAdapter>) -> Self {
         let info = adapter.info().clone();
 
-        Self {
-            info,
-            adapter,
-        }
+        Self { info, adapter }
     }
 }
 
@@ -43,10 +38,7 @@ mod tests {
             Ok(())
         }
 
-        fn send_frame(
-            &mut self,
-            _frame: &[u8],
-        ) -> Result<(), AdapterError> {
+        fn send_frame(&mut self, _frame: &[u8]) -> Result<(), AdapterError> {
             Ok(())
         }
 
@@ -76,12 +68,10 @@ mod tests {
 
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
-            connected: true
+            connected: true,
         };
 
-        let session = DeviceSession::new(
-            Box::new(adapter)
-        );
+        let session = DeviceSession::new(Box::new(adapter));
 
         assert_eq!(session.info.id, info.id);
         assert_eq!(session.info.name, info.name);
