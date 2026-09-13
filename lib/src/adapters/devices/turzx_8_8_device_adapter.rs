@@ -15,13 +15,13 @@ const DES_KEY: &[u8; 8] = b"slv3tuzx";
 
 type DesCbcEnc = cbc::Encryptor<Des>;
 
-pub struct TurzxDeviceAdapter {
+pub struct Turzx88DeviceAdapter {
     info: DeviceInfo,
     connection: Box<dyn UsbConnection>,
     connected: bool,
 }
 
-impl TurzxDeviceAdapter {
+impl Turzx88DeviceAdapter {
     pub fn new(info: UsbDeviceInfo, connection: Box<dyn UsbConnection>) -> Self {
         Self {
             info: DeviceInfo {
@@ -84,7 +84,7 @@ impl TurzxDeviceAdapter {
     }
 }
 
-impl DisplayAdapter for TurzxDeviceAdapter {
+impl DisplayAdapter for Turzx88DeviceAdapter {
     fn info(&self) -> &DeviceInfo {
         &self.info
     }
@@ -228,11 +228,11 @@ mod tests {
         }
     }
 
-    fn create_adapter() -> TurzxDeviceAdapter {
+    fn create_adapter() -> Turzx88DeviceAdapter {
         let info = get_test_usb_device_info();
         let connection = FakeUsbConnection::new();
 
-        TurzxDeviceAdapter::new(info, Box::new(connection))
+        Turzx88DeviceAdapter::new(info, Box::new(connection))
     }
 
     #[test]
@@ -328,18 +328,18 @@ mod tests {
 
     #[test]
     fn encrypted_command_has_correct_size() {
-        let command = TurzxDeviceAdapter::build_command(102, Some(100));
+        let command = Turzx88DeviceAdapter::build_command(102, Some(100));
 
-        let encrypted = TurzxDeviceAdapter::encrypt_command(&command);
+        let encrypted = Turzx88DeviceAdapter::encrypt_command(&command);
 
         assert_eq!(encrypted.len(), 512);
     }
 
     #[test]
     fn encrypted_command_has_turzx_footer() {
-        let command = TurzxDeviceAdapter::build_command(102, Some(100));
+        let command = Turzx88DeviceAdapter::build_command(102, Some(100));
 
-        let encrypted = TurzxDeviceAdapter::encrypt_command(&command);
+        let encrypted = Turzx88DeviceAdapter::encrypt_command(&command);
 
         assert_eq!(encrypted[510], 0xA1);
         assert_eq!(encrypted[511], 0x1A);
@@ -349,7 +349,7 @@ mod tests {
     fn image_command_contains_payload_size() {
         let payload_size = 12345;
 
-        let command = TurzxDeviceAdapter::build_command(102, Some(payload_size));
+        let command = Turzx88DeviceAdapter::build_command(102, Some(payload_size));
 
         let encoded_size = u32::from_be_bytes([command[8], command[9], command[10], command[11]]);
 
@@ -358,14 +358,14 @@ mod tests {
 
     #[test]
     fn sync_command_has_correct_command_id() {
-        let command = TurzxDeviceAdapter::build_command(10, None);
+        let command = Turzx88DeviceAdapter::build_command(10, None);
 
         assert_eq!(command[0], 10);
     }
 
     #[test]
     fn image_command_has_correct_command_id() {
-        let command = TurzxDeviceAdapter::build_command(102, Some(100));
+        let command = Turzx88DeviceAdapter::build_command(102, Some(100));
 
         assert_eq!(command[0], 102);
     }
