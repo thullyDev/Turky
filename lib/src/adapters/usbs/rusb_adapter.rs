@@ -185,6 +185,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires physical USB device"]
     fn discovers_connected_usb_devices() {
         let adapter = RusbAdapter::new();
 
