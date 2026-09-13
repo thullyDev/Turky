@@ -1,4 +1,4 @@
-use crate::adapters::devices::turzx_device_adapter::TurzxDeviceAdapter;
+use crate::adapters::devices::turzx_8_8_device_adapter::Turzx88DeviceAdapter;
 use crate::adapters::display_adapter::DisplayAdapter;
 use crate::adapters::usbs::usb_connection::UsbConnection;
 use crate::adapters::usbs::usb_device_info::UsbDeviceInfo;
@@ -17,7 +17,7 @@ impl DeviceFactory {
         connection: Box<dyn UsbConnection>,
     ) -> Option<Box<dyn DisplayAdapter>> {
         if info.vendor_id == Turzx.vendor_id() && info.product_id == Turzx.product_id() {
-            Some(Box::new(TurzxDeviceAdapter::new(info, connection)))
+            Some(Box::new(Turzx88DeviceAdapter::new(info, connection)))
         } else {
             None
         }

@@ -185,6 +185,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires physical USB device"]
     fn discovers_connected_usb_devices() {
         let adapter = RusbAdapter::new();
 
@@ -208,6 +209,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires physical USB device"]
     fn creates_connection_for_discovered_device() {
         let adapter = RusbAdapter::new();
 
@@ -223,6 +225,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires physical USB device"]
     fn connection_fails_when_not_open() {
         let adapter = RusbAdapter::new();
 
@@ -242,6 +245,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires physical USB device"]
     fn read_fails_when_not_open() {
         let adapter = RusbAdapter::new();
 
@@ -261,6 +265,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires physical USB device"]
     fn close_closes_connection() {
         let adapter = RusbAdapter::new();
 
