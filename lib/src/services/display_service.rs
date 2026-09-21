@@ -1,9 +1,5 @@
-use crate::{
-    schemas::display_schemas::RenderImageTextResponse, services::device_service::DeviceService,
-};
-use ab_glyph::FontRef;
-use image::{codecs::png::PngEncoder, ImageBuffer, ImageEncoder, Rgba, RgbaImage};
-use imageproc::drawing::draw_text_mut;
+use crate::services::device_service::DeviceService;
+use image::{codecs::png::PngEncoder, ImageEncoder, RgbaImage};
 
 pub struct DisplayService {
     device_serv: DeviceService,
@@ -14,18 +10,9 @@ impl DisplayService {
         Self { device_serv }
     }
 
-    pub fn render_text_image(&mut self, message: String) -> RenderImageTextResponse {
-        let image = self.text_to_image(&message);
-
-        println!("Generated image: {}x{}", image.width(), image.height());
-
-        let png = self.image_to_png(&image);
-
-        println!("PNG size: {} bytes", png.len());
-
+    pub fn render_image(&mut self, image: RgbaImage) {
+        let png = self.prepare_image(&image);
         let registry = self.device_serv.registry();
-
-        println!("Length ===> {}", registry.len());
 
         if let Some(device) = registry.first_mut() {
             device
@@ -35,34 +22,14 @@ impl DisplayService {
         } else {
             println!("No display device available");
         }
-
-        RenderImageTextResponse { message }
     }
 
-    fn text_to_image(&self, message: &str) -> RgbaImage {
-        let width = 480;
-        let height = 1920;
-
-        let mut image = ImageBuffer::from_pixel(width, height, Rgba([0, 0, 0, 255]));
-
-        let font = FontRef::try_from_slice(include_bytes!("../../assets/dejavu-sans-bold.ttf"))
-            .expect("Failed to load font");
-
-        draw_text_mut(
-            &mut image,
-            Rgba([255, 255, 255, 255]),
-            20,
-            800,
-            80.0,
-            &font,
-            message,
-        );
-
-        image
+    fn prepare_image(&self, image: &RgbaImage) -> Vec<u8> {
+        let png = self.rgba_image_to_png(&image);
+        png
     }
 
-    // TODO: write tests for this method
-    fn image_to_png(&self, image: &RgbaImage) -> Vec<u8> {
+    fn rgba_image_to_png(&self, image: &RgbaImage) -> Vec<u8> {
         let mut png = Vec::new();
 
         let encoder = PngEncoder::new(&mut png);
@@ -82,7 +49,11 @@ impl DisplayService {
 
 #[cfg(test)]
 mod tests {
+    use image::Rgba;
+
     use super::*;
+
+    use std::sync::{Arc, Mutex};
 
     use crate::{
         adapters::usbs::{
@@ -126,20 +97,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn creates_display_service() {
-        let registry = DeviceRegistry::new();
-        let factory = DeviceFactory::new();
-
-        let usb = FakeUsbAdapter { devices: vec![] };
-
-        let device_service = DeviceService::new(registry, factory, Box::new(usb));
-
-        let _service = DisplayService::new(device_service);
-    }
-
-    #[test]
-    fn renders_text_image_when_device_exists() {
+    fn create_test_service(sent_frames: Arc<Mutex<Vec<Vec<u8>>>>) -> DisplayService {
         let mut registry = DeviceRegistry::new();
 
         let info = get_test_device_info();
@@ -147,6 +105,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: true,
+            sent_frames,
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -157,52 +116,53 @@ mod tests {
 
         let usb = FakeUsbAdapter { devices: vec![] };
 
-        let device_service = DeviceService::new(registry, factory, Box::new(usb));
+        let device_service = DeviceService::new_for_test(registry, factory, Box::new(usb));
 
-        let mut service = DisplayService::new(device_service);
-
-        let result = service.render_text_image("Hello".to_string());
-
-        assert_eq!(result.message, "Hello");
+        DisplayService::new(device_service)
     }
 
     #[test]
-    fn encodes_image_to_png() {
+    fn creates_display_service() {
         let registry = DeviceRegistry::new();
+
         let factory = DeviceFactory::new();
+
         let usb = FakeUsbAdapter { devices: vec![] };
 
-        let device_service = DeviceService::new(registry, factory, Box::new(usb));
+        let device_service = DeviceService::new_for_test(registry, factory, Box::new(usb));
 
-        let service = DisplayService::new(device_service);
+        let _service = DisplayService::new(device_service);
+    }
 
+    #[test]
+    fn renders_text_image_when_device_exists() {
+        let sent_frames = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
+        let mut service = create_test_service(Arc::clone(&sent_frames));
         let image = RgbaImage::from_pixel(480, 1920, Rgba([255, 0, 0, 255]));
 
-        let png = service.image_to_png(&image);
+        service.render_image(image);
 
-        // PNG signature
-        assert_eq!(&png[..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+        let frames = sent_frames.lock().unwrap();
 
-        assert!(!png.is_empty());
-    }
+        assert_eq!(frames.len(), 1);
+        assert!(!frames[0].is_empty());
 
-    #[test]
-    fn png_preserves_image_dimensions() {
-        let registry = DeviceRegistry::new();
-        let factory = DeviceFactory::new();
-        let usb = FakeUsbAdapter { devices: vec![] };
-
-        let device_service = DeviceService::new(registry, factory, Box::new(usb));
-
-        let service = DisplayService::new(device_service);
-
-        let image = RgbaImage::from_pixel(480, 1920, Rgba([255, 255, 255, 255]));
-
-        let png = service.image_to_png(&image);
-
-        let decoded = image::load_from_memory(&png).expect("Failed to decode PNG");
+        let decoded =
+            image::load_from_memory(&frames[0]).expect("Sent frame should be a valid PNG");
 
         assert_eq!(decoded.width(), 480);
         assert_eq!(decoded.height(), 1920);
+    }
+
+    #[test]
+    fn does_not_panic_when_no_device_exists() {
+        let registry = DeviceRegistry::new();
+        let factory = DeviceFactory::new();
+        let usb = FakeUsbAdapter { devices: vec![] };
+        let device_service = DeviceService::new_for_test(registry, factory, Box::new(usb));
+        let mut service = DisplayService::new(device_service);
+        let image = RgbaImage::from_pixel(480, 1920, Rgba([255, 0, 0, 255]));
+
+        service.render_image(image);
     }
 }

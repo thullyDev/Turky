@@ -1,23 +1,33 @@
+use crate::adapters::devices::virtual_device_adapter::VirtualAdapter;
+use crate::adapters::display_adapter::DisplayAdapter;
 use crate::adapters::usbs::usb_adapter::UsbAdapter;
+use crate::devices::device_id::DeviceId;
+use crate::devices::device_info::DeviceInfo;
 use crate::devices::device_registry::DeviceRegistry;
 use crate::devices::device_session::DeviceSession;
 use crate::factories::device_factory::DeviceFactory;
+use tauri::AppHandle;
 
 pub struct DeviceService {
     factory: DeviceFactory,
     registry: DeviceRegistry,
     usb: Box<dyn UsbAdapter>,
+    app: Option<AppHandle>,
 }
-
 impl DeviceService {
-    pub fn new(registry: DeviceRegistry, factory: DeviceFactory, usb: Box<dyn UsbAdapter>) -> Self {
+    pub fn new(
+        registry: DeviceRegistry,
+        factory: DeviceFactory,
+        usb: Box<dyn UsbAdapter>,
+        app: AppHandle,
+    ) -> Self {
         Self {
             factory,
             registry,
             usb,
+            app: Some(app),
         }
     }
-
     pub fn discover_devices(&mut self) {
         let devices = self.usb.discover_devices().unwrap();
 
@@ -41,8 +51,50 @@ impl DeviceService {
         }
     }
 
+    pub fn use_virtual_device(&mut self, width: u32, height: u32) {
+        let info = DeviceInfo {
+            id: DeviceId("virtual-device".to_string()),
+            name: "Virtual Display".to_string(),
+            vendor_id: 0xFFFF,
+            product_id: 0x0001,
+            width,
+            height,
+        };
+
+        let app = self
+            .app
+            .clone()
+            .expect("AppHandle required for virtual device");
+
+        let mut adapter = VirtualAdapter::new(app, info);
+
+        adapter
+            .connect()
+            .expect("failed to connect virtual display");
+
+        let device_id = adapter.info().id.clone();
+
+        let session = DeviceSession::new(Box::new(adapter));
+
+        self.registry.add(device_id, session);
+    }
+
     pub fn registry(&mut self) -> &mut DeviceRegistry {
         &mut self.registry
+    }
+
+    #[cfg(test)]
+    pub fn new_for_test(
+        registry: DeviceRegistry,
+        factory: DeviceFactory,
+        usb: Box<dyn UsbAdapter>,
+    ) -> Self {
+        Self {
+            factory,
+            registry,
+            usb,
+            app: None,
+        }
     }
 }
 
@@ -55,6 +107,8 @@ mod tests {
         usb_connection::UsbConnection, usb_device_info::UsbDeviceInfo, usb_errors::UsbError,
     };
 
+    use crate::devices::device_id::DeviceId;
+    use crate::devices::device_info::DeviceInfo;
     use crate::devices::device_model::DeviceModel::Turzx;
 
     struct FakeUsbConnection {
@@ -115,7 +169,7 @@ mod tests {
 
         let usb = FakeUsbAdapter { devices: vec![] };
 
-        let _service = DeviceService::new(registry, factory, Box::new(usb));
+        let _service = DeviceService::new_for_test(registry, factory, Box::new(usb));
     }
 
     #[test]
@@ -132,10 +186,29 @@ mod tests {
             }],
         };
 
-        let mut service = DeviceService::new(registry, factory, Box::new(usb));
+        let mut service = DeviceService::new_for_test(registry, factory, Box::new(usb));
 
         service.discover_devices();
 
         assert_eq!(service.registry.len(), 1);
+    }
+
+    #[test]
+    fn creates_virtual_device_with_correct_dimensions() {
+        let info = DeviceInfo {
+            id: DeviceId("virtual-device".to_string()),
+            name: "Virtual Display".to_string(),
+            vendor_id: 0xFFFF,
+            product_id: 0x0001,
+            width: 480,
+            height: 1920,
+        };
+
+        assert_eq!(info.id, DeviceId("virtual-device".to_string()));
+        assert_eq!(info.name, "Virtual Display");
+        assert_eq!(info.vendor_id, 0xFFFF);
+        assert_eq!(info.product_id, 0x0001);
+        assert_eq!(info.width, 480);
+        assert_eq!(info.height, 1920);
     }
 }
