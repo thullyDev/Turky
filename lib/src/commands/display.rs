@@ -1,5 +1,4 @@
 use crate::state::AppState;
-use image::RgbaImage;
 
 #[tauri::command]
 pub fn render_image(bytes: Vec<u8>, state: tauri::State<'_, AppState>) -> Result<(), String> {

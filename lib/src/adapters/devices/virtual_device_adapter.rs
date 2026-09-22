@@ -34,7 +34,7 @@ impl VirtualAdapter {
         WebviewWindowBuilder::new(
             &self.app,
             WINDOW_LABEL,
-            WebviewUrl::App("virtual-display.html".into()),
+            WebviewUrl::App("index.html?virtual-display".into()),
         )
         .title("Turky Virtual Display")
         .inner_size(self.info.width as f64, self.info.height as f64)
@@ -92,17 +92,32 @@ impl DisplayAdapter for VirtualAdapter {
             return Err(AdapterError::Disconnected);
         }
 
-        validate_frame(&self.info, frame)?;
+        let image = image::load_from_memory(frame)
+            .map_err(|_| AdapterError::SendFailed)?
+            .to_rgba8();
+
+        if image.width() != self.info.width || image.height() != self.info.height {
+            return Err(AdapterError::SendFailed);
+        }
+
+        println!(
+            "Sending virtual frame: {}x{} ({} bytes)",
+            image.width(),
+            image.height(),
+            image.as_raw().len()
+        );
 
         let event = FrameEvent {
-            width: self.info.width,
-            height: self.info.height,
-            pixels: frame.to_vec(),
+            width: image.width(),
+            height: image.height(),
+            pixels: image.into_raw(),
         };
 
         self.app
             .emit_to(WINDOW_LABEL, "virtual-frame", event)
             .map_err(|_| AdapterError::SendFailed)?;
+
+        println!("virtual-frame emitted");
 
         Ok(())
     }
