@@ -1,4 +1,7 @@
 #[cfg(test)]
+use std::sync::{Arc, Mutex};
+
+#[cfg(test)]
 use crate::adapters::display_adapter::{AdapterError, DisplayAdapter};
 
 #[cfg(test)]
@@ -8,6 +11,7 @@ use crate::devices::{device_id::DeviceId, device_info::DeviceInfo};
 pub struct FakeDisplayAdapter {
     pub info: DeviceInfo,
     pub connected: bool,
+    pub sent_frames: Arc<Mutex<Vec<Vec<u8>>>>,
 }
 
 #[cfg(test)]
@@ -26,7 +30,9 @@ impl DisplayAdapter for FakeDisplayAdapter {
         Ok(())
     }
 
-    fn send_frame(&mut self, _frame: &[u8]) -> Result<(), AdapterError> {
+    fn send_frame(&mut self, frame: &[u8]) -> Result<(), AdapterError> {
+        self.sent_frames.lock().unwrap().push(frame.to_vec());
+
         Ok(())
     }
 
