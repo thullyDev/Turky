@@ -11,7 +11,18 @@ pub fn render_image(bytes: Vec<u8>, state: tauri::State<'_, AppState>) -> Result
         .lock()
         .map_err(|e| format!("Failed to lock DisplayService: {e}"))?;
 
-    display.render_image(image);
+    // TODO: Get the selected device ID from the frontend.
+    let device_id = display
+        .device_serv
+        .registry()
+        .first_mut()
+        .map(|device| device.info.id.clone());
+
+    if let Some(device_id) = device_id {
+        display.render_image(image, &device_id);
+    } else {
+        println!("No display device available");
+    }
 
     Ok(())
 }

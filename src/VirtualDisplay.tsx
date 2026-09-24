@@ -11,8 +11,6 @@ export default function VirtualDisplay() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        console.log("🔥 VIRTUAL DISPLAY LOADED");
-
         document.documentElement.style.margin = "0";
         document.documentElement.style.padding = "0";
         document.documentElement.style.width = "100%";
@@ -71,10 +69,10 @@ export default function VirtualDisplay() {
                     },
                 );
 
-                console.log("✅ virtual-frame listener registered");
+                console.log("virtual-frame listener registered");
             } catch (error) {
                 console.error(
-                    "❌ Failed to register virtual-frame listener:",
+                    "Failed to register virtual-frame listener:",
                     error,
                 );
             }

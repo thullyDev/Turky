@@ -1,8 +1,8 @@
-use crate::services::device_service::DeviceService;
+use crate::{devices::device_id::DeviceId, services::device_service::DeviceService};
 use image::{codecs::png::PngEncoder, ImageEncoder, RgbaImage};
 
 pub struct DisplayService {
-    device_serv: DeviceService,
+    pub device_serv: DeviceService,
 }
 
 impl DisplayService {
@@ -10,20 +10,16 @@ impl DisplayService {
         Self { device_serv }
     }
 
-    pub fn render_image(&mut self, image: RgbaImage) {
+    pub fn render_image(&mut self, image: RgbaImage, device_id: &DeviceId) {
         let png = self.prepare_image(&image);
-        let registry = self.device_serv.registry();
 
-        if let Some(device) = registry.first_mut() {
+        if let Some(device) = self.device_serv.registry().get_mut(device_id) {
             device
                 .adapter
                 .send_frame(&png)
                 .expect("Failed to send frame");
-        } else {
-            println!("No display device available");
         }
     }
-
     fn prepare_image(&self, image: &RgbaImage) -> Vec<u8> {
         let png = self.rgba_image_to_png(&image);
         png
@@ -99,7 +95,6 @@ mod tests {
 
     fn create_test_service(sent_frames: Arc<Mutex<Vec<Vec<u8>>>>) -> DisplayService {
         let mut registry = DeviceRegistry::new();
-
         let info = get_test_device_info();
 
         let adapter = FakeDisplayAdapter {
@@ -135,12 +130,13 @@ mod tests {
     }
 
     #[test]
-    fn renders_text_image_when_device_exists() {
+    fn renders_image_when_device_exists() {
         let sent_frames = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
         let mut service = create_test_service(Arc::clone(&sent_frames));
         let image = RgbaImage::from_pixel(480, 1920, Rgba([255, 0, 0, 255]));
-
-        service.render_image(image);
+        let info = get_test_device_info();
+        let device_id = info.id.clone();
+        service.render_image(image, &device_id);
 
         let frames = sent_frames.lock().unwrap();
 
@@ -162,7 +158,9 @@ mod tests {
         let device_service = DeviceService::new_for_test(registry, factory, Box::new(usb));
         let mut service = DisplayService::new(device_service);
         let image = RgbaImage::from_pixel(480, 1920, Rgba([255, 0, 0, 255]));
+        let info = get_test_device_info();
+        let device_id = info.id.clone();
 
-        service.render_image(image);
+        service.render_image(image, &device_id);
     }
 }
