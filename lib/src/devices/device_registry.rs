@@ -52,6 +52,8 @@ impl DeviceRegistry {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
     use super::*;
 
     use crate::utils::test_utils::{get_test_device_info, FakeDisplayAdapter};
@@ -65,6 +67,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -86,6 +89,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -112,6 +116,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -146,6 +151,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -173,6 +179,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -193,6 +200,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -217,6 +225,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -244,6 +253,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
@@ -264,6 +274,7 @@ mod tests {
         let adapter = FakeDisplayAdapter {
             info: info.clone(),
             connected: false,
+            sent_frames: Arc::new(Mutex::new(Vec::new())),
         };
 
         let session = DeviceSession::new(Box::new(adapter));
