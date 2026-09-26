@@ -1,5 +1,6 @@
 use crate::adapters::display_adapter::{AdapterError, DisplayAdapter};
 use crate::devices::device_info::DeviceInfo;
+use image::RgbaImage;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 const WINDOW_LABEL: &str = "virtual-display";
@@ -87,35 +88,27 @@ impl DisplayAdapter for VirtualAdapter {
         Ok(())
     }
 
-    fn send_frame(&mut self, frame: &[u8]) -> Result<(), AdapterError> {
+    fn send_frame(&mut self, image: &RgbaImage) -> Result<(), AdapterError> {
         if !self.connected {
             return Err(AdapterError::Disconnected);
         }
-
-        let image = image::load_from_memory(frame)
-            .map_err(|_| AdapterError::SendFailed)?
-            .to_rgba8();
 
         if image.width() != self.info.width || image.height() != self.info.height {
             return Err(AdapterError::SendFailed);
         }
 
-        println!(
-            "Sending virtual frame: {}x{} ({} bytes)",
-            image.width(),
-            image.height(),
-            image.as_raw().len()
-        );
-
         let event = FrameEvent {
             width: image.width(),
             height: image.height(),
-            pixels: image.into_raw(),
+            pixels: image.as_raw().clone(),
         };
 
         self.app
             .emit_to(WINDOW_LABEL, "virtual-frame", event)
-            .map_err(|_| AdapterError::SendFailed)?;
+            .map_err(|error| {
+                eprintln!("Failed to emit virtual-frame: {error}");
+                AdapterError::SendFailed
+            })?;
 
         println!("virtual-frame emitted");
 

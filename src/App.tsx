@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 function App() {
-    async function sendImageToRust(
+    async function sendMediaToRust(
         event: React.ChangeEvent<HTMLInputElement>,
     ) {
         const file = event.target.files?.[0];
@@ -15,13 +15,24 @@ function App() {
             const buffer = await file.arrayBuffer();
             const bytes = Array.from(new Uint8Array(buffer));
 
-            await invoke("render_image", {
-                bytes,
-            });
+            if (file.type === "image/gif") {
+                await invoke("render_gif", {
+                    bytes,
+                });
 
-            console.log("Image sent to Rust");
+                console.log("GIF sent to Rust");
+            } else {
+                await invoke("render_image", {
+                    bytes,
+                });
+
+                console.log("Image sent to Rust");
+            }
         } catch (error) {
-            console.error("Failed to render image:", error);
+            console.error(
+                "Failed to render media:",
+                error,
+            );
         }
     }
 
@@ -31,8 +42,8 @@ function App() {
 
             <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={sendImageToRust}
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={sendMediaToRust}
             />
         </main>
     );

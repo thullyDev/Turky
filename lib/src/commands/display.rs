@@ -19,7 +19,30 @@ pub fn render_image(bytes: Vec<u8>, state: tauri::State<'_, AppState>) -> Result
         .map(|device| device.info.id.clone());
 
     if let Some(device_id) = device_id {
-        display.render_image(image, &device_id);
+        display.render_image(&image, &device_id);
+    } else {
+        println!("No display device available");
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn render_gif(bytes: Vec<u8>, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let mut display = state
+        .display
+        .lock()
+        .map_err(|e| format!("Failed to lock DisplayService: {e}"))?;
+
+    // TODO: Get the selected device ID from the frontend.
+    let device_id = display
+        .device_serv
+        .registry()
+        .first_mut()
+        .map(|device| device.info.id.clone());
+
+    if let Some(device_id) = device_id {
+        display.render_gif(&bytes, &device_id)?;
     } else {
         println!("No display device available");
     }
@@ -48,6 +71,7 @@ mod tests {
 
         assert_eq!(decoded.width(), 480);
         assert_eq!(decoded.height(), 1920);
+
         assert_eq!(decoded.get_pixel(0, 0), &Rgba([255, 0, 0, 255]));
     }
 

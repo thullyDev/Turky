@@ -8,6 +8,7 @@ use crate::devices::device_info::DeviceInfo;
 use cbc::cipher::{block_padding::NoPadding, BlockEncryptMut, KeyIvInit};
 use chrono::Local;
 use des::Des;
+use image::RgbaImage;
 
 const USB_OUT: u8 = 0x01;
 
@@ -130,24 +131,24 @@ impl DisplayAdapter for Turzx88DeviceAdapter {
         Ok(())
     }
 
-    fn send_frame(&mut self, frame: &[u8]) -> Result<(), AdapterError> {
-        if !self.connected {
-            return Err(AdapterError::Disconnected);
-        }
+    fn send_frame(&mut self, frame: &RgbaImage) -> Result<(), AdapterError> {
+        // if !self.connected {
+        //     return Err(AdapterError::Disconnected);
+        // }
 
-        let command = Self::build_command(102, Some(frame.len()));
+        // let command = Self::build_command(102, Some(frame.len()));
 
-        let encrypted_command = Self::encrypt_command(&command);
+        // let encrypted_command = Self::encrypt_command(&command);
 
-        let mut payload = Vec::with_capacity(encrypted_command.len() + frame.len());
+        // let mut payload = Vec::with_capacity(encrypted_command.len() + frame.len());
 
-        payload.extend_from_slice(&encrypted_command);
+        // payload.extend_from_slice(&encrypted_command);
 
-        payload.extend_from_slice(frame);
+        // payload.extend_from_slice(frame);
 
-        self.connection
-            .write(USB_OUT, &payload)
-            .map_err(|_| AdapterError::TransferFailed)?;
+        // self.connection
+        //     .write(USB_OUT, &payload)
+        //     .map_err(|_| AdapterError::TransferFailed)?;
 
         Ok(())
     }
