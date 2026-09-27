@@ -11,6 +11,12 @@ pub trait DisplayAdapter: Send + Sync {
 
     fn send_frame(&mut self, image: &RgbaImage) -> Result<(), AdapterError>;
 
+    fn preload_frame(&mut self, _image: &RgbaImage) -> Result<(), AdapterError> {
+        Ok(())
+    }
+
+    fn reset_preloaded(&mut self) {}
+
     fn clear(&mut self) -> Result<(), AdapterError>;
 
     fn is_connected(&self) -> bool;

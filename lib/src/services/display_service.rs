@@ -23,24 +23,66 @@ impl DisplayService {
     }
 
     pub fn render_gif(&mut self, bytes: &[u8], device_id: &DeviceId) -> Result<(), String> {
+        self.play_gif(bytes, device_id, None)
+    }
+
+    fn play_gif(
+        &mut self,
+        bytes: &[u8],
+        device_id: &DeviceId,
+        repeats: Option<usize>,
+    ) -> Result<(), String> {
         let decoder = GifDecoder::new(Cursor::new(bytes))
             .map_err(|e| format!("Failed to create GIF decoder: {e}"))?;
 
-        let frame_duration = std::time::Duration::from_secs_f64(1.0 / 30.0);
+        let frame_duration = std::time::Duration::from_secs_f64(1.0 / 60.0);
+        let mut frames = decoder.into_frames();
+        let mut decoded = Vec::new();
 
-        for frame_result in decoder.into_frames() {
+        loop {
+            let Some(frame_result) = frames.next() else {
+                break;
+            };
+
             let frame = frame_result.map_err(|e| format!("Failed to decode GIF frame: {e}"))?;
 
-            let image = frame.into_buffer();
+            decoded.push(frame.into_buffer());
+        }
 
-            let start = std::time::Instant::now();
+        if decoded.is_empty() || self.device_serv.registry().get(device_id).is_none() {
+            return Ok(());
+        }
 
-            self.render_image(&image, device_id);
+        if let Some(device) = self.device_serv.registry().get_mut(device_id) {
+            device.adapter.reset_preloaded();
 
-            let elapsed = start.elapsed();
+            for image in &decoded {
+                device
+                    .adapter
+                    .preload_frame(image)
+                    .map_err(|error| format!("Failed to prepare frame: {error:?}"))?;
+            }
+        }
 
-            if elapsed < frame_duration {
-                std::thread::sleep(frame_duration - elapsed);
+        let mut played = 0;
+
+        loop {
+            for image in &decoded {
+                let start = std::time::Instant::now();
+
+                self.render_image(image, device_id);
+
+                let elapsed = start.elapsed();
+
+                if elapsed < frame_duration {
+                    std::thread::sleep(frame_duration - elapsed);
+                }
+            }
+
+            played += 1;
+
+            if repeats.is_some_and(|limit| played >= limit) {
+                break;
             }
         }
 
@@ -220,7 +262,7 @@ mod tests {
 
         let gif = create_test_gif();
 
-        let result = service.render_gif(&gif, &device_id);
+        let result = service.play_gif(&gif, &device_id, Some(1));
 
         assert!(result.is_ok(), "render_gif failed: {:?}", result.err());
 
@@ -268,7 +310,7 @@ mod tests {
         let start = Instant::now();
 
         service
-            .render_gif(&gif, &device_id)
+            .play_gif(&gif, &device_id, Some(1))
             .expect("render_gif failed");
 
         let elapsed = start.elapsed();

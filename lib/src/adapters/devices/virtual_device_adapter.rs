@@ -1,6 +1,8 @@
 use crate::adapters::display_adapter::{AdapterError, DisplayAdapter};
 use crate::devices::device_info::DeviceInfo;
-use image::RgbaImage;
+use base64::Engine;
+use image::codecs::jpeg::JpegEncoder;
+use image::{ImageEncoder, RgbaImage};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 const WINDOW_LABEL: &str = "virtual-display";
@@ -9,13 +11,15 @@ const WINDOW_LABEL: &str = "virtual-display";
 struct FrameEvent {
     width: u32,
     height: u32,
-    pixels: Vec<u8>,
+    jpeg: String,
 }
 
 pub struct VirtualAdapter {
     info: DeviceInfo,
     connected: bool,
     app: AppHandle,
+    prepared: Vec<String>,
+    next_prepared: usize,
 }
 
 impl VirtualAdapter {
@@ -24,6 +28,8 @@ impl VirtualAdapter {
             info,
             connected: false,
             app,
+            prepared: Vec::new(),
+            next_prepared: 0,
         }
     }
 
@@ -44,6 +50,30 @@ impl VirtualAdapter {
         .map_err(|_| AdapterError::ConnectionFailed)?;
 
         Ok(())
+    }
+
+    fn encode_jpeg(image: &RgbaImage) -> Result<Vec<u8>, AdapterError> {
+        let mut rgb = Vec::with_capacity((image.width() * image.height() * 3) as usize);
+        for pixel in image.pixels() {
+            rgb.extend_from_slice(&pixel.0[..3]);
+        }
+        let mut jpeg = Vec::new();
+        let encoder = JpegEncoder::new_with_quality(&mut jpeg, 75);
+        encoder
+            .write_image(
+                &rgb,
+                image.width(),
+                image.height(),
+                image::ExtendedColorType::Rgb8,
+            )
+            .map_err(|_| AdapterError::SendFailed)?;
+        Ok(jpeg)
+    }
+
+    fn encode_jpeg_base64(image: &RgbaImage) -> Result<String, AdapterError> {
+        let jpeg = Self::encode_jpeg(image)?;
+
+        Ok(base64::engine::general_purpose::STANDARD.encode(jpeg))
     }
 }
 
@@ -97,10 +127,18 @@ impl DisplayAdapter for VirtualAdapter {
             return Err(AdapterError::SendFailed);
         }
 
+        let jpeg = if self.prepared.is_empty() {
+            Self::encode_jpeg_base64(image)?
+        } else {
+            let jpeg = self.prepared[self.next_prepared].clone();
+            self.next_prepared = (self.next_prepared + 1) % self.prepared.len();
+            jpeg
+        };
+
         let event = FrameEvent {
             width: image.width(),
             height: image.height(),
-            pixels: image.as_raw().clone(),
+            jpeg,
         };
 
         self.app
@@ -110,9 +148,23 @@ impl DisplayAdapter for VirtualAdapter {
                 AdapterError::SendFailed
             })?;
 
-        println!("virtual-frame emitted");
+        Ok(())
+    }
+
+    fn preload_frame(&mut self, image: &RgbaImage) -> Result<(), AdapterError> {
+        if image.width() != self.info.width || image.height() != self.info.height {
+            return Err(AdapterError::SendFailed);
+        }
+
+        let jpeg = Self::encode_jpeg_base64(image)?;
+        self.prepared.push(jpeg);
 
         Ok(())
+    }
+
+    fn reset_preloaded(&mut self) {
+        self.prepared.clear();
+        self.next_prepared = 0;
     }
 
     fn clear(&mut self) -> Result<(), AdapterError> {
@@ -223,18 +275,16 @@ mod tests {
     fn frame_event_contains_correct_dimensions_and_pixels() {
         let info = test_device_info();
 
-        let pixels = vec![
-            255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255,
-        ];
+        let jpeg = "encoded-frame".to_string();
 
         let event = FrameEvent {
             width: info.width,
             height: info.height,
-            pixels: pixels.clone(),
+            jpeg: jpeg.clone(),
         };
 
         assert_eq!(event.width, 2);
         assert_eq!(event.height, 2);
-        assert_eq!(event.pixels, pixels);
+        assert_eq!(event.jpeg, jpeg);
     }
 }
