@@ -3,6 +3,7 @@ mod app;
 mod commands;
 mod devices;
 mod factories;
+mod rendering;
 mod schemas;
 mod services;
 mod state;

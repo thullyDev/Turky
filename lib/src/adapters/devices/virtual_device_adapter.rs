@@ -2,6 +2,7 @@ use crate::adapters::display_adapter::{AdapterError, DisplayAdapter};
 use crate::devices::device_info::DeviceInfo;
 use base64::Engine;
 use image::codecs::jpeg::JpegEncoder;
+use image::codecs::png::PngEncoder;
 use image::{ImageEncoder, RgbaImage};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -14,12 +15,25 @@ struct FrameEvent {
     jpeg: String,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct GifEvent {
+    gif: String,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct OverlayEvent {
+    width: u32,
+    height: u32,
+    png: String,
+}
+
 pub struct VirtualAdapter {
     info: DeviceInfo,
     connected: bool,
     app: AppHandle,
     prepared: Vec<String>,
     next_prepared: usize,
+    gif_background: bool,
 }
 
 impl VirtualAdapter {
@@ -30,6 +44,7 @@ impl VirtualAdapter {
             app,
             prepared: Vec::new(),
             next_prepared: 0,
+            gif_background: false,
         }
     }
 
@@ -74,6 +89,22 @@ impl VirtualAdapter {
         let jpeg = Self::encode_jpeg(image)?;
 
         Ok(base64::engine::general_purpose::STANDARD.encode(jpeg))
+    }
+
+    fn encode_png_base64(image: &RgbaImage) -> Result<String, AdapterError> {
+        let mut png = Vec::new();
+        let encoder = PngEncoder::new(&mut png);
+
+        encoder
+            .write_image(
+                image.as_raw(),
+                image.width(),
+                image.height(),
+                image::ExtendedColorType::Rgba8,
+            )
+            .map_err(|_| AdapterError::SendFailed)?;
+
+        Ok(base64::engine::general_purpose::STANDARD.encode(png))
     }
 }
 
@@ -127,6 +158,23 @@ impl DisplayAdapter for VirtualAdapter {
             return Err(AdapterError::SendFailed);
         }
 
+        if self.gif_background {
+            let event = OverlayEvent {
+                width: image.width(),
+                height: image.height(),
+                png: Self::encode_png_base64(image)?,
+            };
+
+            self.app
+                .emit_to(WINDOW_LABEL, "virtual-overlay", event)
+                .map_err(|error| {
+                    eprintln!("Failed to emit virtual-overlay: {error}");
+                    AdapterError::SendFailed
+                })?;
+
+            return Ok(());
+        }
+
         let jpeg = if self.prepared.is_empty() {
             Self::encode_jpeg_base64(image)?
         } else {
@@ -149,6 +197,43 @@ impl DisplayAdapter for VirtualAdapter {
             })?;
 
         Ok(())
+    }
+
+    fn present_gif(&mut self, bytes: &[u8]) -> Result<bool, AdapterError> {
+        if !self.connected {
+            return Err(AdapterError::Disconnected);
+        }
+
+        self.prepared.clear();
+        self.next_prepared = 0;
+        self.gif_background = true;
+
+        let event = GifEvent {
+            gif: base64::engine::general_purpose::STANDARD.encode(bytes),
+        };
+
+        self.app
+            .emit_to(WINDOW_LABEL, "virtual-gif", event)
+            .map_err(|error| {
+                eprintln!("Failed to emit virtual-gif: {error}");
+                AdapterError::SendFailed
+            })?;
+
+        Ok(true)
+    }
+
+    fn dismiss_gif(&mut self) {
+        if !self.gif_background {
+            return;
+        }
+
+        self.gif_background = false;
+
+        let event = GifEvent { gif: String::new() };
+
+        if let Err(error) = self.app.emit_to(WINDOW_LABEL, "virtual-gif", event) {
+            eprintln!("Failed to emit virtual-gif: {error}");
+        }
     }
 
     fn preload_frame(&mut self, image: &RgbaImage) -> Result<(), AdapterError> {
