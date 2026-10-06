@@ -19,7 +19,6 @@ mod tests {
     use super::*;
     use crate::adapters::display_adapter::AdapterError;
     use crate::devices::device_id::DeviceId;
-    use image::RgbaImage;
 
     struct FakeDisplayAdapter {
         info: DeviceInfo,
@@ -39,7 +38,7 @@ mod tests {
             Ok(())
         }
 
-        fn send_frame(&mut self, _frame: &RgbaImage) -> Result<(), AdapterError> {
+        fn send_frame(&mut self, _frame: &[u8]) -> Result<(), AdapterError> {
             Ok(())
         }
 

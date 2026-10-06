@@ -131,10 +131,10 @@ impl DisplayAdapter for Turzx88DeviceAdapter {
         Ok(())
     }
 
-    fn send_frame(&mut self, _frame: &RgbaImage) -> Result<(), AdapterError> {
-        if !self.connected {
-            return Err(AdapterError::Disconnected);
-        }
+    fn send_frame(&mut self, frame: &RgbaImage) -> Result<(), AdapterError> {
+        // if !self.connected {
+        //     return Err(AdapterError::Disconnected);
+        // }
 
         // let command = Self::build_command(102, Some(frame.len()));
 
@@ -287,9 +287,7 @@ mod tests {
     fn cannot_send_frame_when_disconnected() {
         let mut adapter = create_adapter();
 
-        let image = image::RgbaImage::from_pixel(1, 1, image::Rgba([0, 0, 0, 255]));
-
-        let result = adapter.send_frame(&image);
+        let result = adapter.send_frame(&[]);
 
         assert!(matches!(result.unwrap_err(), AdapterError::Disconnected));
     }
@@ -309,9 +307,9 @@ mod tests {
 
         adapter.connect().expect("Adapter should connect");
 
-        let image = image::RgbaImage::from_pixel(1, 1, image::Rgba([1, 2, 3, 4]));
+        let frame = [1, 2, 3, 4];
 
-        let result = adapter.send_frame(&image);
+        let result = adapter.send_frame(&frame);
 
         assert!(result.is_ok());
     }
@@ -322,9 +320,9 @@ mod tests {
 
         adapter.connect().expect("Adapter should connect");
 
-        let image = image::RgbaImage::from_pixel(1, 1, image::Rgba([1, 2, 3, 4]));
+        let frame = [1, 2, 3, 4];
 
-        adapter.send_frame(&image).expect("Frame should send");
+        adapter.send_frame(&frame).expect("Frame should send");
 
         assert!(adapter.is_connected());
     }

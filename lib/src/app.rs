@@ -4,7 +4,6 @@ use crate::adapters::usbs::rusb_adapter::RusbAdapter;
 use crate::commands;
 use crate::devices::device_registry::DeviceRegistry;
 use crate::factories::device_factory::DeviceFactory;
-use crate::rendering::{FontRegistry, OverlayFormatter, OverlayRenderer, TextLayout};
 use crate::services;
 use crate::state::AppState;
 
@@ -46,17 +45,7 @@ pub fn run() {
                 device_service.discover_devices();
             }
 
-            let overlay_renderer = OverlayRenderer::new(
-                FontRegistry::bundled(),
-                OverlayFormatter::new(),
-                TextLayout::new(),
-            );
-            let stats_service = services::system_stats_service::SystemStatsService::new();
-            let display_service = services::display_service::DisplayService::new(
-                device_service,
-                overlay_renderer,
-                stats_service,
-            );
+            let display_service = services::display_service::DisplayService::new(device_service);
 
             let state = AppState::new(display_service);
 

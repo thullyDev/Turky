@@ -11,12 +11,6 @@ pub trait DisplayAdapter: Send + Sync {
 
     fn send_frame(&mut self, image: &RgbaImage) -> Result<(), AdapterError>;
 
-    fn present_gif(&mut self, _bytes: &[u8]) -> Result<bool, AdapterError> {
-        Ok(false)
-    }
-
-    fn dismiss_gif(&mut self) {}
-
     fn preload_frame(&mut self, _image: &RgbaImage) -> Result<(), AdapterError> {
         Ok(())
     }
