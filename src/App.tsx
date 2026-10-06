@@ -1,10 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
 import "./App.css";
+import OverlayForm from "./OverlayForm";
+import { defaultOverlayItems, toOverlayConfig } from "./overlayConfig";
+import type { OverlayItem } from "./overlayConfig";
 
 function App() {
-    async function sendMediaToRust(
-        event: React.ChangeEvent<HTMLInputElement>,
-    ) {
+    const [items, setItems] = useState<OverlayItem[]>(defaultOverlayItems);
+    const [message, setMessage] = useState("");
+
+    async function sendMediaToRust(event: React.ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
 
         if (!file) {
@@ -12,6 +17,10 @@ function App() {
         }
 
         try {
+            await invoke("set_overlay_config", {
+                config: toOverlayConfig(items),
+            });
+
             const buffer = await file.arrayBuffer();
             const bytes = Array.from(new Uint8Array(buffer));
 
@@ -28,11 +37,11 @@ function App() {
 
                 console.log("Image sent to Rust");
             }
+
+            setMessage("Media sent with the current stats.");
         } catch (error) {
-            console.error(
-                "Failed to render media:",
-                error,
-            );
+            console.error("Failed to render media:", error);
+            setMessage("Failed to render media.");
         }
     }
 
@@ -40,11 +49,18 @@ function App() {
         <main className="container">
             <h1>Turky</h1>
 
-            <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                onChange={sendMediaToRust}
-            />
+            <OverlayForm items={items} onChange={setItems} />
+
+            <label className="media-picker">
+                Media
+                <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={sendMediaToRust}
+                />
+            </label>
+
+            <p className="status">{message}</p>
         </main>
     );
 }

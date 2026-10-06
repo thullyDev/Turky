@@ -45,7 +45,13 @@ pub fn run() {
                 device_service.discover_devices();
             }
 
-            let display_service = services::display_service::DisplayService::new(device_service);
+            let overlay_service = services::overlay_service::OverlayService::new(
+                services::gif_cutter::GifCutter::new(),
+                services::system_stats_service::SystemStatsService::new(),
+                services::stats_painter::StatsPainter::new(),
+            );
+            let display_service =
+                services::display_service::DisplayService::new(device_service, overlay_service);
 
             let state = AppState::new(display_service);
 

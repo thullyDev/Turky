@@ -1,16 +1,25 @@
-use std::io::Cursor;
+use crate::devices::device_id::DeviceId;
+use crate::schemas::overlay_schemas::OverlayConfig;
+use crate::services::device_service::DeviceService;
+use crate::services::overlay_service::OverlayService;
 
-use crate::{devices::device_id::DeviceId, services::device_service::DeviceService};
-
-use image::{codecs::gif::GifDecoder, AnimationDecoder, RgbaImage};
+use image::RgbaImage;
 
 pub struct DisplayService {
     pub device_serv: DeviceService,
+    overlay_service: OverlayService,
 }
 
 impl DisplayService {
-    pub fn new(device_serv: DeviceService) -> Self {
-        Self { device_serv }
+    pub fn new(device_serv: DeviceService, overlay_service: OverlayService) -> Self {
+        Self {
+            device_serv,
+            overlay_service,
+        }
+    }
+
+    pub fn set_overlay_config(&mut self, config: OverlayConfig) {
+        self.overlay_service.set_config(config);
     }
 
     pub fn render_image(&mut self, image: &RgbaImage, device_id: &DeviceId) {
@@ -32,22 +41,7 @@ impl DisplayService {
         device_id: &DeviceId,
         repeats: Option<usize>,
     ) -> Result<(), String> {
-        let decoder = GifDecoder::new(Cursor::new(bytes))
-            .map_err(|e| format!("Failed to create GIF decoder: {e}"))?;
-
-        let frame_duration = std::time::Duration::from_secs_f64(1.0 / 60.0);
-        let mut frames = decoder.into_frames();
-        let mut decoded = Vec::new();
-
-        loop {
-            let Some(frame_result) = frames.next() else {
-                break;
-            };
-
-            let frame = frame_result.map_err(|e| format!("Failed to decode GIF frame: {e}"))?;
-
-            decoded.push(frame.into_buffer());
-        }
+        let decoded = self.overlay_service.cut(bytes)?;
 
         if decoded.is_empty() || self.device_serv.registry().get(device_id).is_none() {
             return Ok(());
@@ -55,27 +49,21 @@ impl DisplayService {
 
         if let Some(device) = self.device_serv.registry().get_mut(device_id) {
             device.adapter.reset_preloaded();
-
-            for image in &decoded {
-                device
-                    .adapter
-                    .preload_frame(image)
-                    .map_err(|error| format!("Failed to prepare frame: {error:?}"))?;
-            }
         }
 
         let mut played = 0;
 
         loop {
-            for image in &decoded {
+            for gif_frame in &decoded {
                 let start = std::time::Instant::now();
+                let frame = self.overlay_service.apply(&gif_frame.image);
 
-                self.render_image(image, device_id);
+                self.render_image(&frame, device_id);
 
                 let elapsed = start.elapsed();
 
-                if elapsed < frame_duration {
-                    std::thread::sleep(frame_duration - elapsed);
+                if elapsed < gif_frame.delay {
+                    std::thread::sleep(gif_frame.delay - elapsed);
                 }
             }
 
@@ -106,9 +94,14 @@ mod tests {
         },
         devices::{device_registry::DeviceRegistry, device_session::DeviceSession},
         factories::device_factory::DeviceFactory,
-        services::device_service::DeviceService,
+        services::{
+            device_service::DeviceService, gif_cutter::GifCutter, overlay_service::OverlayService,
+            stats_painter::StatsPainter, system_stats_service::SystemStatsService,
+        },
         utils::test_utils::{get_test_device_info, FakeDisplayAdapter},
     };
+
+    use crate::services::system_stats_service::SystemStats;
 
     struct FakeUsbConnection;
 
@@ -163,7 +156,18 @@ mod tests {
 
         let device_service = DeviceService::new_for_test(registry, factory, Box::new(usb));
 
-        DisplayService::new(device_service)
+        DisplayService::new(device_service, test_overlay())
+    }
+
+    fn test_overlay() -> OverlayService {
+        OverlayService::new(
+            GifCutter::new(),
+            SystemStatsService::fixed(SystemStats {
+                cpu_percent: 100.0,
+                ..SystemStats::empty()
+            }),
+            StatsPainter::new(),
+        )
     }
 
     #[test]
@@ -176,7 +180,7 @@ mod tests {
 
         let device_service = DeviceService::new_for_test(registry, factory, Box::new(usb));
 
-        let _service = DisplayService::new(device_service);
+        let _service = DisplayService::new(device_service, test_overlay());
     }
 
     #[test]
@@ -208,7 +212,7 @@ mod tests {
 
         let device_service = DeviceService::new_for_test(registry, factory, Box::new(usb));
 
-        let mut service = DisplayService::new(device_service);
+        let mut service = DisplayService::new(device_service, test_overlay());
 
         let image = RgbaImage::from_pixel(480, 1920, Rgba([255, 0, 0, 255]));
 
@@ -276,6 +280,45 @@ mod tests {
     }
 
     #[test]
+    fn gif_frames_include_the_current_stats() {
+        let sent_frames = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
+        let mut service = create_test_service(Arc::clone(&sent_frames));
+        let mut bytes = Vec::new();
+
+        {
+            let mut encoder =
+                Encoder::new(&mut bytes, 320, 80, &[]).expect("Failed to create GIF encoder");
+
+            encoder
+                .set_repeat(Repeat::Infinite)
+                .expect("Failed to set GIF repeat");
+
+            let pixels = vec![0u8; 320 * 80 * 3];
+            let mut frame = Frame::from_rgb(320, 80, &pixels);
+
+            frame.delay = 1;
+
+            encoder
+                .write_frame(&frame)
+                .expect("Failed to write GIF frame");
+        }
+
+        service
+            .play_gif(&bytes, &get_test_device_info().id, Some(1))
+            .expect("gif should play");
+
+        let frames = sent_frames.lock().unwrap();
+
+        assert_eq!(frames.len(), 1);
+
+        let has_text = frames[0]
+            .chunks(4)
+            .any(|pixel| pixel[0] > 200 && pixel[1] > 200 && pixel[2] > 200);
+
+        assert!(has_text, "expected current stats on the sent GIF frame");
+    }
+
+    #[test]
     fn render_gif_returns_error_for_invalid_data() {
         let sent_frames = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
 
@@ -298,25 +341,50 @@ mod tests {
     }
 
     #[test]
-    fn render_gif_targets_30_fps() {
+    fn playback_waits_for_each_gif_frame_delay() {
         let sent_frames = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
 
         let mut service = create_test_service(sent_frames);
 
         let device_id = get_test_device_info().id.clone();
 
-        let gif = create_test_gif();
+        let mut bytes = Vec::new();
+
+        {
+            let mut encoder =
+                Encoder::new(&mut bytes, 2, 2, &[]).expect("Failed to create GIF encoder");
+
+            encoder
+                .set_repeat(Repeat::Infinite)
+                .expect("Failed to set GIF repeat");
+
+            let mut frame = Frame::from_rgb(2, 2, &[255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0]);
+
+            frame.delay = 5;
+
+            encoder
+                .write_frame(&frame)
+                .expect("Failed to write GIF frame");
+
+            let mut frame = Frame::from_rgb(2, 2, &[0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 255]);
+
+            frame.delay = 5;
+
+            encoder
+                .write_frame(&frame)
+                .expect("Failed to write GIF frame");
+        }
 
         let start = Instant::now();
 
         service
-            .play_gif(&gif, &device_id, Some(1))
+            .play_gif(&bytes, &device_id, Some(1))
             .expect("render_gif failed");
 
         let elapsed = start.elapsed();
 
         assert!(
-            elapsed >= Duration::from_millis(60),
+            elapsed >= Duration::from_millis(90),
             "GIF rendered too quickly: {:?}",
             elapsed
         );

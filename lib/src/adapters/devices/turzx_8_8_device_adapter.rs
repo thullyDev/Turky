@@ -131,10 +131,10 @@ impl DisplayAdapter for Turzx88DeviceAdapter {
         Ok(())
     }
 
-    fn send_frame(&mut self, frame: &RgbaImage) -> Result<(), AdapterError> {
-        // if !self.connected {
-        //     return Err(AdapterError::Disconnected);
-        // }
+    fn send_frame(&mut self, _frame: &RgbaImage) -> Result<(), AdapterError> {
+        if !self.connected {
+            return Err(AdapterError::Disconnected);
+        }
 
         // let command = Self::build_command(102, Some(frame.len()));
 
@@ -173,6 +173,7 @@ impl DisplayAdapter for Turzx88DeviceAdapter {
 mod tests {
     use super::*;
     use crate::adapters::usbs::usb_connection::UsbConnection;
+    use image::{Rgba, RgbaImage};
     use crate::adapters::usbs::usb_device_info::UsbDeviceInfo;
     use crate::adapters::usbs::usb_errors::UsbError;
     use crate::devices::device_model::DeviceModel;
@@ -287,7 +288,7 @@ mod tests {
     fn cannot_send_frame_when_disconnected() {
         let mut adapter = create_adapter();
 
-        let result = adapter.send_frame(&[]);
+        let result = adapter.send_frame(&RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 255])));
 
         assert!(matches!(result.unwrap_err(), AdapterError::Disconnected));
     }
@@ -307,7 +308,7 @@ mod tests {
 
         adapter.connect().expect("Adapter should connect");
 
-        let frame = [1, 2, 3, 4];
+        let frame = RgbaImage::from_pixel(1, 1, Rgba([1, 2, 3, 4]));
 
         let result = adapter.send_frame(&frame);
 
@@ -320,7 +321,7 @@ mod tests {
 
         adapter.connect().expect("Adapter should connect");
 
-        let frame = [1, 2, 3, 4];
+        let frame = RgbaImage::from_pixel(1, 1, Rgba([1, 2, 3, 4]));
 
         adapter.send_frame(&frame).expect("Frame should send");
 
