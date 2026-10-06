@@ -1,4 +1,5 @@
-use crate::devices::device_id::DeviceId;
+use image::RgbaImage;
+
 use crate::devices::device_info::DeviceInfo;
 
 pub trait DisplayAdapter: Send + Sync {
@@ -8,7 +9,13 @@ pub trait DisplayAdapter: Send + Sync {
 
     fn disconnect(&mut self) -> Result<(), AdapterError>;
 
-    fn send_frame(&mut self, frame: &[u8]) -> Result<(), AdapterError>;
+    fn send_frame(&mut self, image: &RgbaImage) -> Result<(), AdapterError>;
+
+    fn preload_frame(&mut self, _image: &RgbaImage) -> Result<(), AdapterError> {
+        Ok(())
+    }
+
+    fn reset_preloaded(&mut self) {}
 
     fn clear(&mut self) -> Result<(), AdapterError>;
 
@@ -28,6 +35,8 @@ pub enum AdapterError {
 
 #[cfg(test)]
 mod tests {
+    use crate::devices::device_id::DeviceId;
+
     use super::*;
 
     struct FakeDisplayAdapter {
@@ -65,7 +74,7 @@ mod tests {
             self.connected
         }
 
-        fn send_frame(&mut self, _frame: &[u8]) -> Result<(), AdapterError> {
+        fn send_frame(&mut self, _frame: &RgbaImage) -> Result<(), AdapterError> {
             if !self.connected {
                 return Err(AdapterError::Disconnected);
             }

@@ -8,6 +8,7 @@ use crate::devices::device_info::DeviceInfo;
 use cbc::cipher::{block_padding::NoPadding, BlockEncryptMut, KeyIvInit};
 use chrono::Local;
 use des::Des;
+use image::RgbaImage;
 
 const USB_OUT: u8 = 0x01;
 
@@ -130,24 +131,24 @@ impl DisplayAdapter for Turzx88DeviceAdapter {
         Ok(())
     }
 
-    fn send_frame(&mut self, frame: &[u8]) -> Result<(), AdapterError> {
+    fn send_frame(&mut self, _frame: &RgbaImage) -> Result<(), AdapterError> {
         if !self.connected {
             return Err(AdapterError::Disconnected);
         }
 
-        let command = Self::build_command(102, Some(frame.len()));
+        // let command = Self::build_command(102, Some(frame.len()));
 
-        let encrypted_command = Self::encrypt_command(&command);
+        // let encrypted_command = Self::encrypt_command(&command);
 
-        let mut payload = Vec::with_capacity(encrypted_command.len() + frame.len());
+        // let mut payload = Vec::with_capacity(encrypted_command.len() + frame.len());
 
-        payload.extend_from_slice(&encrypted_command);
+        // payload.extend_from_slice(&encrypted_command);
 
-        payload.extend_from_slice(frame);
+        // payload.extend_from_slice(frame);
 
-        self.connection
-            .write(USB_OUT, &payload)
-            .map_err(|_| AdapterError::TransferFailed)?;
+        // self.connection
+        //     .write(USB_OUT, &payload)
+        //     .map_err(|_| AdapterError::TransferFailed)?;
 
         Ok(())
     }
@@ -172,6 +173,7 @@ impl DisplayAdapter for Turzx88DeviceAdapter {
 mod tests {
     use super::*;
     use crate::adapters::usbs::usb_connection::UsbConnection;
+    use image::{Rgba, RgbaImage};
     use crate::adapters::usbs::usb_device_info::UsbDeviceInfo;
     use crate::adapters::usbs::usb_errors::UsbError;
     use crate::devices::device_model::DeviceModel;
@@ -286,7 +288,7 @@ mod tests {
     fn cannot_send_frame_when_disconnected() {
         let mut adapter = create_adapter();
 
-        let result = adapter.send_frame(&[]);
+        let result = adapter.send_frame(&RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 255])));
 
         assert!(matches!(result.unwrap_err(), AdapterError::Disconnected));
     }
@@ -306,7 +308,7 @@ mod tests {
 
         adapter.connect().expect("Adapter should connect");
 
-        let frame = [1, 2, 3, 4];
+        let frame = RgbaImage::from_pixel(1, 1, Rgba([1, 2, 3, 4]));
 
         let result = adapter.send_frame(&frame);
 
@@ -319,7 +321,7 @@ mod tests {
 
         adapter.connect().expect("Adapter should connect");
 
-        let frame = [1, 2, 3, 4];
+        let frame = RgbaImage::from_pixel(1, 1, Rgba([1, 2, 3, 4]));
 
         adapter.send_frame(&frame).expect("Frame should send");
 
