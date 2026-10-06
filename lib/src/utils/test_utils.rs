@@ -8,6 +8,9 @@ use crate::adapters::display_adapter::{AdapterError, DisplayAdapter};
 use crate::devices::{device_id::DeviceId, device_info::DeviceInfo};
 
 #[cfg(test)]
+use image::RgbaImage;
+
+#[cfg(test)]
 pub struct FakeDisplayAdapter {
     pub info: DeviceInfo,
     pub connected: bool,
@@ -30,8 +33,11 @@ impl DisplayAdapter for FakeDisplayAdapter {
         Ok(())
     }
 
-    fn send_frame(&mut self, frame: &[u8]) -> Result<(), AdapterError> {
-        self.sent_frames.lock().unwrap().push(frame.to_vec());
+    fn send_frame(&mut self, image: &RgbaImage) -> Result<(), AdapterError> {
+        self.sent_frames
+            .lock()
+            .unwrap()
+            .push(image.as_raw().clone());
 
         Ok(())
     }

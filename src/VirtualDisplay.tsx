@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 interface FrameEvent {
     width: number;
     height: number;
-    pixels: number[];
+    jpeg: string;
 }
 
 export default function VirtualDisplay() {
@@ -24,52 +24,64 @@ export default function VirtualDisplay() {
         document.body.style.overflow = "hidden";
 
         let unlisten: (() => void) | undefined;
+        let frameId = 0;
+        let latest: FrameEvent | null = null;
+        let painted = "";
+        let decoding = false;
+
+        const drawLatest = () => {
+            const canvas = canvasRef.current;
+            const frame = latest;
+
+            if (!canvas || !frame || decoding || frame.jpeg === painted) {
+                frameId = requestAnimationFrame(drawLatest);
+                return;
+            }
+
+            const context = canvas.getContext("2d");
+
+            if (!context) {
+                frameId = requestAnimationFrame(drawLatest);
+                return;
+            }
+
+            decoding = true;
+            const jpeg = frame.jpeg;
+            const image = new Image();
+
+            image.onload = () => {
+                decoding = false;
+
+                if (latest?.jpeg !== jpeg) {
+                    frameId = requestAnimationFrame(drawLatest);
+                    return;
+                }
+
+                if (canvas.width !== frame.width || canvas.height !== frame.height) {
+                    canvas.width = frame.width;
+                    canvas.height = frame.height;
+                }
+
+                context.drawImage(image, 0, 0, frame.width, frame.height);
+                painted = jpeg;
+                frameId = requestAnimationFrame(drawLatest);
+            };
+
+            image.onerror = () => {
+                decoding = false;
+                frameId = requestAnimationFrame(drawLatest);
+            };
+
+            image.src = `data:image/jpeg;base64,${jpeg}`;
+        };
 
         const setupListener = async () => {
             try {
-                unlisten = await listen<FrameEvent>(
-                    "virtual-frame",
-                    (event) => {
-                        console.log("🔥 RECEIVED FRAME");
+                unlisten = await listen<FrameEvent>("virtual-frame", (event) => {
+                    latest = event.payload;
+                });
 
-                        const frame = event.payload;
-
-                        console.log(
-                            `Frame: ${frame.width}x${frame.height}, ${frame.pixels.length} bytes`,
-                        );
-
-                        const canvas = canvasRef.current;
-
-                        if (!canvas) {
-                            console.error("Canvas not found");
-                            return;
-                        }
-
-                        canvas.width = frame.width;
-                        canvas.height = frame.height;
-
-                        const context = canvas.getContext("2d");
-
-                        if (!context) {
-                            console.error("Could not get canvas context");
-                            return;
-                        }
-
-                        const pixels = new Uint8ClampedArray(frame.pixels);
-
-                        const imageData = new ImageData(
-                            pixels,
-                            frame.width,
-                            frame.height,
-                        );
-
-                        context.putImageData(imageData, 0, 0);
-
-                        console.log("✅ Frame rendered");
-                    },
-                );
-
-                console.log("virtual-frame listener registered");
+                frameId = requestAnimationFrame(drawLatest);
             } catch (error) {
                 console.error(
                     "Failed to register virtual-frame listener:",
@@ -81,6 +93,8 @@ export default function VirtualDisplay() {
         setupListener();
 
         return () => {
+            cancelAnimationFrame(frameId);
+
             if (unlisten) {
                 unlisten();
             }

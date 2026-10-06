@@ -22,12 +22,84 @@
 }
 
 .container {
-  margin: 0;
-  padding-top: 10vh;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+  max-width: 720px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   text-align: center;
+  gap: 1.5rem;
+}
+
+.overlay-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.overlay-form h2,
+.overlay-form p {
+  margin: 0;
+}
+
+.overlay-card {
+  margin: 0;
+  padding: 0.75rem 1rem 1rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+}
+
+.overlay-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.4rem;
+  font-weight: 500;
+}
+
+.overlay-title input {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.overlay-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.overlay-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.overlay-grid input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.media-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.status {
+  min-height: 1.5rem;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .overlay-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .logo {
@@ -109,6 +181,10 @@ button {
   button {
     color: #ffffff;
     background-color: #0f0f0f98;
+  }
+
+  .overlay-card {
+    border-color: #4a4a4a;
   }
   button:active {
     background-color: #0f0f0f69;
