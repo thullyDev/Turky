@@ -56,7 +56,7 @@ impl DisplayService {
         loop {
             for gif_frame in &decoded {
                 let start = std::time::Instant::now();
-                let frame = self.overlay_service.apply(&gif_frame.image);
+                let frame = self.overlay_service.compose(&gif_frame.image);
 
                 self.render_image(&frame, device_id);
 
