@@ -17,6 +17,9 @@ pub struct OverlayService {
     config: OverlayConfig,
     layer: Option<RgbaImage>,
     layer_at: Option<Instant>,
+    frames_since_sample: u32,
+    sample_started: Option<Instant>,
+    fps: Option<f32>,
     #[cfg(test)]
     refreshes: u32,
 }
@@ -30,6 +33,9 @@ impl OverlayService {
             config: OverlayConfig::stacked(),
             layer: None,
             layer_at: None,
+            frames_since_sample: 0,
+            sample_started: None,
+            fps: None,
             #[cfg(test)]
             refreshes: 0,
         }
@@ -53,7 +59,7 @@ impl OverlayService {
 
         let stats = self.stats.collect();
 
-        self.painter.paint(frame, &stats, &self.config)
+        self.painter.paint(frame, &stats, &self.config, self.fps)
     }
 
     pub fn compose(&mut self, frame: &RgbaImage) -> RgbaImage {
@@ -62,10 +68,11 @@ impl OverlayService {
         }
 
         if self.stats_are_due(frame) {
+            let fps = self.measured_fps();
             let stats = self.stats.collect();
             let blank = RgbaImage::new(frame.width(), frame.height());
 
-            self.layer = Some(self.painter.paint(&blank, &stats, &self.config));
+            self.layer = Some(self.painter.paint(&blank, &stats, &self.config, fps));
             self.layer_at = Some(Instant::now());
 
             #[cfg(test)]
@@ -73,6 +80,8 @@ impl OverlayService {
                 self.refreshes += 1;
             }
         }
+
+        self.frames_since_sample += 1;
 
         let layer = self.layer.as_ref().expect("stats layer was just created");
 
@@ -90,6 +99,30 @@ impl OverlayService {
 
         self.layer_at
             .is_none_or(|painted_at| painted_at.elapsed() >= STATS_INTERVAL)
+    }
+
+    fn measured_fps(&mut self) -> Option<f32> {
+        let frames = self.frames_since_sample;
+
+        self.frames_since_sample = 0;
+
+        let started = self.sample_started.replace(Instant::now());
+
+        let Some(started) = started else {
+            return self.fps;
+        };
+
+        let seconds = started.elapsed().as_secs_f32();
+
+        if seconds <= 0.0 || frames == 0 {
+            return self.fps;
+        }
+
+        let fps = frames as f32 / seconds;
+
+        self.fps = Some(fps);
+
+        Some(fps)
     }
 
     fn blit(&self, background: &RgbaImage, overlay: &RgbaImage) -> RgbaImage {

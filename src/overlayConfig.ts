@@ -4,7 +4,8 @@ export type OverlayMetric =
     | "gpu"
     | "gpuMemory"
     | "cpuTemp"
-    | "gpuTemp";
+    | "gpuTemp"
+    | "fps";
 
 export interface OverlayColor {
     r: number;
@@ -29,6 +30,7 @@ export const overlayMetrics: { metric: OverlayMetric; label: string }[] = [
     { metric: "gpuMemory", label: "GPU memory" },
     { metric: "cpuTemp", label: "CPU temp" },
     { metric: "gpuTemp", label: "GPU temp" },
+    { metric: "fps", label: "FPS" },
 ];
 
 export function defaultOverlayItems(): OverlayItem[] {

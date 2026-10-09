@@ -24,22 +24,29 @@ impl StatsPainter {
         frame: &RgbaImage,
         stats: &SystemStats,
         config: &OverlayConfig,
+        fps: Option<f32>,
     ) -> RgbaImage {
         let mut image = frame.clone();
 
         for item in &config.items {
-            self.draw_item(&mut image, item, stats);
+            self.draw_item(&mut image, item, stats, fps);
         }
 
         image
     }
 
-    fn draw_item(&self, image: &mut RgbaImage, item: &OverlayItem, stats: &SystemStats) {
+    fn draw_item(
+        &self,
+        image: &mut RgbaImage,
+        item: &OverlayItem,
+        stats: &SystemStats,
+        fps: Option<f32>,
+    ) {
         if !item.size.is_finite() || item.size <= 0.0 {
             return;
         }
 
-        let text = self.line(item.metric, stats);
+        let text = self.line(item.metric, stats, fps);
 
         draw_text_mut(
             image,
@@ -52,7 +59,7 @@ impl StatsPainter {
         );
     }
 
-    fn line(&self, metric: OverlayMetric, stats: &SystemStats) -> String {
+    fn line(&self, metric: OverlayMetric, stats: &SystemStats, fps: Option<f32>) -> String {
         match metric {
             OverlayMetric::Cpu => format!("CPU {:.0}%", stats.cpu_percent),
             OverlayMetric::Ram => self.format_ram(stats),
@@ -64,6 +71,10 @@ impl StatsPainter {
             ),
             OverlayMetric::CpuTemp => self.format_temp("CPU", stats.cpu_temp_celsius),
             OverlayMetric::GpuTemp => self.format_temp("GPU", stats.gpu_temp_celsius),
+            OverlayMetric::Fps => match fps {
+                Some(value) => format!("FPS {value:.0}"),
+                None => "FPS --".to_string(),
+            },
         }
     }
 
@@ -106,7 +117,7 @@ impl StatsPainter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schemas::overlay_schemas::OverlayConfig;
+    use crate::schemas::overlay_schemas::{OverlayConfig, OverlayMetric};
 
     #[test]
     fn paints_cpu_text_onto_the_frame() {
@@ -116,7 +127,7 @@ mod tests {
             ..SystemStats::empty()
         };
 
-        let painted = StatsPainter::new().paint(&frame, &stats, &OverlayConfig::stacked());
+        let painted = StatsPainter::new().paint(&frame, &stats, &OverlayConfig::stacked(), None);
 
         let has_text = painted
             .pixels()
@@ -124,5 +135,17 @@ mod tests {
 
         assert!(has_text, "expected white stats text");
         assert_eq!(painted.dimensions(), frame.dimensions());
+    }
+
+    #[test]
+    fn formats_playback_fps() {
+        let painter = StatsPainter::new();
+        let stats = SystemStats::empty();
+
+        assert_eq!(painter.line(OverlayMetric::Fps, &stats, None), "FPS --");
+        assert_eq!(
+            painter.line(OverlayMetric::Fps, &stats, Some(24.2)),
+            "FPS 24"
+        );
     }
 }

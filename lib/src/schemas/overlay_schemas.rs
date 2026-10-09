@@ -14,6 +14,7 @@ impl OverlayConfig {
             OverlayMetric::GpuMemory,
             OverlayMetric::CpuTemp,
             OverlayMetric::GpuTemp,
+            OverlayMetric::Fps,
         ];
 
         Self {
@@ -57,6 +58,7 @@ pub enum OverlayMetric {
     GpuMemory,
     CpuTemp,
     GpuTemp,
+    Fps,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq)]
