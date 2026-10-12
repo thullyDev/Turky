@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use image::RgbaImage;
 
 use crate::devices::device_info::DeviceInfo;
@@ -10,6 +12,21 @@ pub trait DisplayAdapter: Send + Sync {
     fn disconnect(&mut self) -> Result<(), AdapterError>;
 
     fn send_frame(&mut self, image: &RgbaImage) -> Result<(), AdapterError>;
+
+    /// Hand the whole clip to the adapter. `Ok(true)` means the adapter plays it
+    /// and the caller should only refresh the overlay. `Ok(false)` means the
+    /// caller still presents one frame at a time.
+    fn publish_clip(
+        &mut self,
+        _frames: &[&RgbaImage],
+        _delays: &[Duration],
+    ) -> Result<bool, AdapterError> {
+        Ok(false)
+    }
+
+    fn publish_overlay(&mut self, _overlay: Option<&RgbaImage>) -> Result<(), AdapterError> {
+        Ok(())
+    }
 
     fn preload_frame(&mut self, _image: &RgbaImage) -> Result<(), AdapterError> {
         Ok(())
