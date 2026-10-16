@@ -22,7 +22,11 @@ export {
     letterSpacingForPreset,
 } from "./text-style";
 export type { OverlayFontPreset, OverlayTextStyle } from "./text-style";
-export { createDefaultWidgetConfig, WIDGET_KIND_OPTIONS } from "./widget-config";
+export {
+    createDefaultWidgetConfig,
+    widgetPatchForKind,
+    WIDGET_KIND_OPTIONS,
+} from "./widget-config";
 export type { OverlayWidgetConfig, WidgetKind } from "./widget-config";
 export {
     BAR_CHROME_STYLE_OPTIONS,

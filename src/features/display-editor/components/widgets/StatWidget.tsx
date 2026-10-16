@@ -136,6 +136,7 @@ export function StatWidget({ item, scale, customFamilies, inspect }: StatWidgetP
 
     if (item.widget.kind === "ring") {
         const size = item.widget.ringSize * scale;
+        const innerPad = item.widget.ringThickness * scale * 0.35;
 
         return (
             <div
@@ -155,7 +156,7 @@ export function StatWidget({ item, scale, customFamilies, inspect }: StatWidgetP
                         />
                     </div>
                 </InspectTarget>
-                <div className="stat-widget-ring-center">
+                <div className="stat-widget-ring-center" style={{ padding: innerPad }}>
                     {labelNode}
                     {valueNode}
                 </div>

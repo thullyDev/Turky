@@ -6,6 +6,7 @@ import {
     WIDGET_KIND_OPTIONS,
     colorToHex,
     hexToColor,
+    widgetPatchForKind,
     type OverlayWidgetConfig,
     type WidgetKind,
 } from "../../../entities/overlay";
@@ -33,7 +34,7 @@ export function WidgetChromeFields({ widget, onChange }: WidgetChromeFieldsProps
                             key={option.id}
                             type="button"
                             className={`editor-kind-pill${widget.kind === option.id ? " is-active" : ""}`}
-                            onClick={() => onChange({ kind: option.id })}
+                            onClick={() => onChange(widgetPatchForKind(option.id))}
                         >
                             {option.label}
                         </button>

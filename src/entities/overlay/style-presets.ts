@@ -63,11 +63,12 @@ export const STYLE_PRESETS: StylePreset[] = [
     {
         id: "gaming-glow",
         name: "Gaming glow",
-        description: "Bold caps label, bright value, red ring accent.",
+        description: "Purple-to-cyan ring, white HUD type, soft glow.",
         patch: {
             label: {
-                size: 11,
+                size: 10,
                 color: { r: 255, g: 255, b: 255, a: 255 },
+                gradient: { enabled: false, endColor: { r: 255, g: 255, b: 255, a: 255 }, angle: 180 },
                 typography: {
                     fontPreset: "roboto",
                     fontWeight: 700,
@@ -75,11 +76,12 @@ export const STYLE_PRESETS: StylePreset[] = [
                     letterSpacing: 0.1,
                     uppercase: true,
                 },
-                css: "text-shadow: 0 0 6px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.9);",
+                css: "",
             },
             value: {
-                size: 26,
+                size: 22,
                 color: { r: 255, g: 255, b: 255, a: 255 },
+                gradient: { enabled: false, endColor: { r: 255, g: 255, b: 255, a: 255 }, angle: 180 },
                 typography: {
                     fontPreset: "roboto",
                     fontWeight: 700,
@@ -87,18 +89,20 @@ export const STYLE_PRESETS: StylePreset[] = [
                     letterSpacing: 0,
                     uppercase: false,
                 },
-                css: "text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.85);",
+                css: "",
             },
             widget: {
                 kind: "ring",
-                ringStyle: "solid",
-                trackColor: { r: 40, g: 40, b: 44, a: 200 },
-                fillColor: { r: 239, g: 68, b: 68, a: 255 },
+                ringStyle: "gradient",
+                trackColor: { r: 186, g: 230, b: 253, a: 90 },
+                fillColor: { r: 168, g: 85, b: 247, a: 255 },
+                fillGradientColor: { r: 34, g: 211, b: 238, a: 255 },
+                fillGradientAngle: 180,
                 ringSize: 72,
                 ringThickness: 8,
                 ringLineCap: "round",
-                ringTrackCss: "opacity: 0.85;",
-                ringFillCss: "filter: drop-shadow(0 0 4px rgba(239,68,68,0.75));",
+                ringTrackCss: "",
+                ringFillCss: "",
                 barTrackCss: "background: linear-gradient(90deg, #1a1a1d, #2a2a2f);",
                 barFillCss: "box-shadow: 0 0 8px rgba(239,68,68,0.6);",
                 barBorderRadius: 999,
@@ -202,6 +206,9 @@ export function applyStylePreset(item: OverlayItem, presetId: string): OverlayIt
                   typography: patch.label.typography
                       ? { ...item.label.typography, ...patch.label.typography }
                       : item.label.typography,
+                  gradient: patch.label.gradient
+                      ? { ...item.label.gradient, ...patch.label.gradient }
+                      : item.label.gradient,
               }
             : item.label,
         value: patch.value
@@ -211,6 +218,9 @@ export function applyStylePreset(item: OverlayItem, presetId: string): OverlayIt
                   typography: patch.value.typography
                       ? { ...item.value.typography, ...patch.value.typography }
                       : item.value.typography,
+                  gradient: patch.value.gradient
+                      ? { ...item.value.gradient, ...patch.value.gradient }
+                      : item.value.gradient,
               }
             : item.value,
         widget: patch.widget

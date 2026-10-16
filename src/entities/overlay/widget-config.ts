@@ -60,9 +60,9 @@ export function createDefaultWidgetConfig(): OverlayWidgetConfig {
         barSegmentGap: 4,
         barTrackCss: "",
         barFillCss: "",
-        ringSize: 56,
-        ringThickness: 7,
-        ringStyle: "solid",
+        ringSize: 72,
+        ringThickness: 8,
+        ringStyle: "gradient",
         ringLineCap: "round",
         ringSegmentCount: 12,
         ringSegmentGap: 4,
@@ -73,9 +73,36 @@ export function createDefaultWidgetConfig(): OverlayWidgetConfig {
         ringTrackCss: "",
         ringFillCss: "",
         chromeCss: "",
-        trackColor: { r: 255, g: 255, b: 255, a: 40 },
-        fillColor: { r: 139, g: 92, b: 246, a: 255 },
-        fillGradientColor: { r: 56, g: 189, b: 248, a: 255 },
-        fillGradientAngle: 90,
+        trackColor: { r: 186, g: 230, b: 253, a: 90 },
+        fillColor: { r: 168, g: 85, b: 247, a: 255 },
+        fillGradientColor: { r: 34, g: 211, b: 238, a: 255 },
+        fillGradientAngle: 180,
     };
+}
+
+/** Sensible chrome defaults when the user picks bar / ring / stack in the inspector. */
+export function widgetPatchForKind(kind: WidgetKind): Partial<OverlayWidgetConfig> {
+    if (kind === "ring") {
+        return {
+            kind: "ring",
+            ringStyle: "gradient",
+            ringSize: 72,
+            ringThickness: 8,
+            ringLineCap: "round",
+            trackColor: { r: 186, g: 230, b: 253, a: 90 },
+            fillColor: { r: 168, g: 85, b: 247, a: 255 },
+            fillGradientColor: { r: 34, g: 211, b: 238, a: 255 },
+            fillGradientAngle: 180,
+        };
+    }
+
+    if (kind === "bar") {
+        return { kind: "bar", barStyle: "solid" };
+    }
+
+    if (kind === "stack") {
+        return { kind: "stack", barStyle: "solid" };
+    }
+
+    return { kind: "text" };
 }

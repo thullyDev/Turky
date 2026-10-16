@@ -2,6 +2,7 @@ import {
     colorToHex,
     hexToColor,
     WIDGET_KIND_OPTIONS,
+    widgetPatchForKind,
     type OverlayWidgetConfig,
 } from "../../../../entities/overlay";
 
@@ -21,7 +22,9 @@ export function WidgetConfigFields({ widget, onChange }: WidgetConfigFieldsProps
                 <select
                     value={widget.kind}
                     onChange={(event) =>
-                        onChange({ kind: event.target.value as OverlayWidgetConfig["kind"] })
+                        onChange(
+                            widgetPatchForKind(event.target.value as OverlayWidgetConfig["kind"]),
+                        )
                     }
                 >
                     {WIDGET_KIND_OPTIONS.map((option) => (

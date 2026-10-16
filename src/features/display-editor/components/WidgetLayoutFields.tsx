@@ -1,4 +1,8 @@
-import { WIDGET_KIND_OPTIONS, type OverlayWidgetConfig } from "../../../entities/overlay";
+import {
+    WIDGET_KIND_OPTIONS,
+    widgetPatchForKind,
+    type OverlayWidgetConfig,
+} from "../../../entities/overlay";
 
 interface WidgetLayoutFieldsProps {
     widget: OverlayWidgetConfig;
@@ -13,7 +17,9 @@ export function WidgetLayoutFields({ widget, onChange }: WidgetLayoutFieldsProps
                 <select
                     value={widget.kind}
                     onChange={(event) =>
-                        onChange({ kind: event.target.value as OverlayWidgetConfig["kind"] })
+                        onChange(
+                            widgetPatchForKind(event.target.value as OverlayWidgetConfig["kind"]),
+                        )
                     }
                 >
                     {WIDGET_KIND_OPTIONS.map((option) => (
