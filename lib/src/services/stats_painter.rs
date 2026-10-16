@@ -1,22 +1,28 @@
-use ab_glyph::{FontArc, PxScale};
-use image::{Rgba, RgbaImage};
-use imageproc::drawing::draw_text_mut;
+use ab_glyph::FontArc;
+use image::RgbaImage;
 
-use crate::schemas::overlay_schemas::{OverlayConfig, OverlayItem, OverlayMetric};
+use crate::schemas::overlay_schemas::OverlayConfig;
 use super::system_stats_service::SystemStats;
+use super::widget_painter;
 
 pub struct StatsPainter {
-    font: FontArc,
+    regular: FontArc,
+    bold: FontArc,
 }
 
 impl StatsPainter {
     pub fn new() -> Self {
-        let font = FontArc::try_from_slice(include_bytes!(
+        let regular = FontArc::try_from_slice(include_bytes!(
             "../../assets/fonts/Roboto-Regular.ttf"
         ))
         .expect("bundled Roboto font should load");
 
-        Self { font }
+        let bold = FontArc::try_from_slice(include_bytes!(
+            "../../assets/fonts/Roboto-Bold.ttf"
+        ))
+        .expect("bundled Roboto Bold font should load");
+
+        Self { regular, bold }
     }
 
     pub fn paint(
@@ -29,88 +35,23 @@ impl StatsPainter {
         let mut image = frame.clone();
 
         for item in &config.items {
-            self.draw_item(&mut image, item, stats, fps);
+            let size = item.value_size();
+
+            if !size.is_finite() || size <= 0.0 {
+                continue;
+            }
+
+            widget_painter::draw_widget(
+                &mut image,
+                item,
+                stats,
+                fps,
+                &self.regular,
+                &self.bold,
+            );
         }
 
         image
-    }
-
-    fn draw_item(
-        &self,
-        image: &mut RgbaImage,
-        item: &OverlayItem,
-        stats: &SystemStats,
-        fps: Option<f32>,
-    ) {
-        if !item.size.is_finite() || item.size <= 0.0 {
-            return;
-        }
-
-        let text = self.line(item.metric, stats, fps);
-
-        draw_text_mut(
-            image,
-            Rgba([item.color.r, item.color.g, item.color.b, item.color.a]),
-            item.position.x,
-            item.position.y,
-            PxScale::from(item.size),
-            &self.font,
-            &text,
-        );
-    }
-
-    fn line(&self, metric: OverlayMetric, stats: &SystemStats, fps: Option<f32>) -> String {
-        match metric {
-            OverlayMetric::Cpu => format!("CPU {:.0}%", stats.cpu_percent),
-            OverlayMetric::Ram => self.format_ram(stats),
-            OverlayMetric::Gpu => self.format_percent("GPU", stats.gpu_percent),
-            OverlayMetric::GpuMemory => self.format_memory(
-                "VRAM",
-                stats.gpu_memory_used_bytes,
-                stats.gpu_memory_total_bytes,
-            ),
-            OverlayMetric::CpuTemp => self.format_temp("CPU", stats.cpu_temp_celsius),
-            OverlayMetric::GpuTemp => self.format_temp("GPU", stats.gpu_temp_celsius),
-            OverlayMetric::Fps => match fps {
-                Some(value) => format!("FPS {value:.0}"),
-                None => "FPS --".to_string(),
-            },
-        }
-    }
-
-    fn format_ram(&self, stats: &SystemStats) -> String {
-        format!(
-            "RAM {}/{} GB",
-            self.gigabytes(stats.ram_used_bytes),
-            self.gigabytes(stats.ram_total_bytes)
-        )
-    }
-
-    fn format_percent(&self, label: &str, value: Option<f32>) -> String {
-        match value {
-            Some(value) => format!("{label} {value:.0}%"),
-            None => format!("{label} --"),
-        }
-    }
-
-    fn format_memory(&self, label: &str, used: Option<u64>, total: Option<u64>) -> String {
-        match (used, total) {
-            (Some(used), Some(total)) => {
-                format!("{label} {}/{} GB", self.gigabytes(used), self.gigabytes(total))
-            }
-            _ => format!("{label} --"),
-        }
-    }
-
-    fn format_temp(&self, label: &str, value: Option<f32>) -> String {
-        match value {
-            Some(value) => format!("{label} {value:.0}°C"),
-            None => format!("{label} --"),
-        }
-    }
-
-    fn gigabytes(&self, bytes: u64) -> String {
-        format!("{:.1}", bytes as f64 / 1_073_741_824.0)
     }
 }
 
@@ -118,6 +59,7 @@ impl StatsPainter {
 mod tests {
     use super::*;
     use crate::schemas::overlay_schemas::{OverlayConfig, OverlayMetric};
+    use image::{Rgba, RgbaImage};
 
     #[test]
     fn paints_cpu_text_onto_the_frame() {
@@ -138,14 +80,25 @@ mod tests {
     }
 
     #[test]
-    fn formats_playback_fps() {
-        let painter = StatsPainter::new();
-        let stats = SystemStats::empty();
+    fn paints_bar_widget_pixels() {
+        let frame = RgbaImage::from_pixel(320, 200, Rgba([0, 0, 0, 255]));
+        let mut config = OverlayConfig::stacked();
+        config.items.retain(|item| item.metric == OverlayMetric::Cpu);
+        config.items[0].widget.kind = crate::schemas::overlay_schemas::WidgetKind::Bar;
+        config.items[0].widget.show_label = false;
+        config.items[0].widget.show_value = false;
 
-        assert_eq!(painter.line(OverlayMetric::Fps, &stats, None), "FPS --");
-        assert_eq!(
-            painter.line(OverlayMetric::Fps, &stats, Some(24.2)),
-            "FPS 24"
-        );
+        let stats = SystemStats {
+            cpu_percent: 100.0,
+            ..SystemStats::empty()
+        };
+
+        let painted = StatsPainter::new().paint(&frame, &stats, &config, None);
+
+        let has_fill = painted
+            .pixels()
+            .any(|pixel| pixel[0] > 120 && pixel[2] > 120);
+
+        assert!(has_fill, "expected bar fill pixels");
     }
 }

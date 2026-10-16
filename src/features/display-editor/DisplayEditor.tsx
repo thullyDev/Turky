@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 
 import type { OverlayItem, OverlayMetric } from "../../entities/overlay";
+import { useDownloadedFonts } from "../../shared/hooks/useDownloadedFonts";
 import { useElementSize } from "../../shared/hooks/useElementSize";
 import { fitScale as computeFitScale } from "../../shared/lib/fit-scale";
 import { EditorSidebar } from "./components/EditorSidebar";
@@ -32,6 +33,7 @@ export function DisplayEditor({
     const { mediaUrl, mediaBytes, mediaType, pickMedia } = useEditorMedia(() => onStatus(""));
     const { previewing, sendPreview } = useDisplayPreview(items, onStatus);
     const [selected, setSelected] = useState<OverlayMetric>("cpu");
+    const fonts = useDownloadedFonts();
 
     const scale = computeFitScale(paneSize.w, paneSize.h, display);
     const stageWidth = display.width * scale;
@@ -61,6 +63,7 @@ export function DisplayEditor({
                     items={items}
                     selected={selected}
                     dragging={dragging}
+                    customFamilies={fonts.families}
                     onSelect={setSelected}
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
@@ -77,6 +80,11 @@ export function DisplayEditor({
                 active={active}
                 previewing={previewing}
                 canPreview={Boolean(mediaBytes)}
+                customFamilies={fonts.families}
+                isDownloaded={fonts.isDownloaded}
+                loadingFontId={fonts.loadingId}
+                fontError={fonts.error}
+                onDownloadFont={(fontId) => void fonts.downloadFont(fontId)}
                 onSelect={setSelected}
                 onToggle={(metric, enabled) => patchItem(metric, { enabled })}
                 onPatch={patchItem}

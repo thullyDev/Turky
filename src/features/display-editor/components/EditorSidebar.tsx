@@ -12,6 +12,11 @@ interface EditorSidebarProps {
     active: OverlayItem | undefined;
     previewing: boolean;
     canPreview: boolean;
+    customFamilies: Record<string, string>;
+    isDownloaded: (fontId: string) => boolean;
+    loadingFontId: string | null;
+    fontError: string;
+    onDownloadFont: (fontId: string) => void;
     onSelect: (metric: OverlayMetric) => void;
     onToggle: (metric: OverlayMetric, enabled: boolean) => void;
     onPatch: (metric: OverlayMetric, patch: Partial<OverlayItem>) => void;
@@ -27,6 +32,11 @@ export function EditorSidebar({
     active,
     previewing,
     canPreview,
+    customFamilies,
+    isDownloaded,
+    loadingFontId,
+    fontError,
+    onDownloadFont,
     onSelect,
     onToggle,
     onPatch,
@@ -53,15 +63,27 @@ export function EditorSidebar({
             <StatList
                 items={items}
                 selected={selected}
+                customFamilies={customFamilies}
                 onSelect={onSelect}
                 onToggle={onToggle}
             />
 
-            {active ? <StatInspector item={active} onPatch={(patch) => onPatch(active.metric, patch)} /> : null}
+            {active ? (
+                <StatInspector
+                    item={active}
+                    customFamilies={customFamilies}
+                    isDownloaded={isDownloaded}
+                    loadingFontId={loadingFontId}
+                    fontError={fontError}
+                    onDownloadFont={onDownloadFont}
+                    onPatch={(patch) => onPatch(active.metric, patch)}
+                />
+            ) : null}
 
-            <p className="editor-status muted" aria-live="polite">
-                {status || "Drag stats on the preview. Preview sends once."}
-            </p>
+                <p className="editor-status muted" aria-live="polite">
+                    {status ||
+                        "Pick a stat, style it as a widget (text, bar, ring, stack), drag it on the preview, then send with Preview."}
+                </p>
         </aside>
     );
 }

@@ -5,8 +5,8 @@ export const OVERLAY_METRICS: { metric: OverlayMetric; label: string }[] = [
     { metric: "ram", label: "RAM" },
     { metric: "gpu", label: "GPU" },
     { metric: "gpuMemory", label: "GPU memory" },
-    { metric: "cpuTemp", label: "CPU temp" },
-    { metric: "gpuTemp", label: "GPU temp" },
+    { metric: "cpuTemp", label: "CPU TEMP" },
+    { metric: "gpuTemp", label: "GPU TEMP" },
     { metric: "fps", label: "FPS" },
 ];
 

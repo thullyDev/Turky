@@ -1,17 +1,28 @@
 import type { CSSProperties } from "react";
 
 import { colorToCss } from "./color";
-import type { OverlayItem } from "./types";
+import {
+    fontFamilyForTypography,
+    letterSpacingForPreset,
+} from "./text-style";
+import type { TextBlockStyle } from "./text-block";
 
-export const STAT_FONT_FAMILY = "Roboto, sans-serif";
+export function textBlockStyle(
+    block: TextBlockStyle,
+    scale: number,
+    customFamilies: Record<string, string>,
+): CSSProperties {
+    const typography = block.typography;
+    const spacing = letterSpacingForPreset(typography.fontPreset, typography.letterSpacing) * scale;
 
-export function statTextStyle(item: OverlayItem, scale: number): CSSProperties {
     return {
-        fontFamily: STAT_FONT_FAMILY,
-        fontSize: item.size * scale,
-        fontWeight: 400,
+        fontFamily: fontFamilyForTypography(typography, customFamilies),
+        fontSize: block.size * scale,
+        fontWeight: typography.fontWeight,
+        fontStyle: typography.italic ? "italic" : "normal",
         lineHeight: 1,
-        letterSpacing: 0,
-        color: colorToCss(item.color),
+        letterSpacing: spacing,
+        textTransform: typography.uppercase ? "uppercase" : "none",
+        color: colorToCss(block.color),
     };
 }

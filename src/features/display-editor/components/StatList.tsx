@@ -1,19 +1,15 @@
-import {
-    metricLabel,
-    sampleStatLabel,
-    statTextStyle,
-    type OverlayItem,
-    type OverlayMetric,
-} from "../../../entities/overlay";
+import { metricLabel, type OverlayItem, type OverlayMetric } from "../../../entities/overlay";
+import { StatWidget } from "./widgets/StatWidget";
 
 interface StatListProps {
     items: OverlayItem[];
     selected: OverlayMetric;
+    customFamilies: Record<string, string>;
     onSelect: (metric: OverlayMetric) => void;
     onToggle: (metric: OverlayMetric, enabled: boolean) => void;
 }
 
-export function StatList({ items, selected, onSelect, onToggle }: StatListProps) {
+export function StatList({ items, selected, customFamilies, onSelect, onToggle }: StatListProps) {
     return (
         <div className="editor-stats">
             {items.map((item) => (
@@ -33,12 +29,8 @@ export function StatList({ items, selected, onSelect, onToggle }: StatListProps)
                         onClick={(event) => event.stopPropagation()}
                     />
                     <span className="editor-stat-row-name">{metricLabel(item.metric)}</span>
-                    <span
-                        className="editor-stat-row-preview"
-                        style={statTextStyle(item, 0.55)}
-                        aria-hidden
-                    >
-                        {sampleStatLabel(item.metric)}
+                    <span className="editor-stat-row-preview" aria-hidden>
+                        <StatWidget item={item} scale={0.45} customFamilies={customFamilies} />
                     </span>
                 </button>
             ))}

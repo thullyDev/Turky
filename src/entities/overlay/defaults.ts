@@ -1,4 +1,6 @@
+import { createDefaultLabelBlock, createDefaultValueBlock } from "./text-block";
 import { OVERLAY_METRICS } from "./metrics";
+import { createDefaultWidgetConfig } from "./widget-config";
 import type { OverlayItem } from "./types";
 
 export function createDefaultOverlayItems(): OverlayItem[] {
@@ -7,7 +9,8 @@ export function createDefaultOverlayItems(): OverlayItem[] {
         enabled: true,
         x: 8,
         y: 8 + index * 32,
-        size: 24,
-        color: { r: 255, g: 255, b: 255, a: 255 },
+        label: createDefaultLabelBlock(),
+        value: createDefaultValueBlock(),
+        widget: createDefaultWidgetConfig(),
     }));
 }

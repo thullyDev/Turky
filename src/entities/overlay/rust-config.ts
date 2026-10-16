@@ -1,17 +1,23 @@
+import { normalizeOverlayItem } from "./normalize-item";
 import type { OverlayItem } from "./types";
 
 export function toRustOverlayConfig(items: OverlayItem[]) {
     return {
         items: items
             .filter((item) => item.enabled)
-            .map((item) => ({
-                metric: item.metric,
-                position: {
-                    x: Math.round(item.x) || 0,
-                    y: Math.round(item.y) || 0,
-                },
-                size: Number.isFinite(item.size) ? item.size : 0,
-                color: item.color,
-            })),
+            .map((item) => {
+                const normalized = normalizeOverlayItem(item);
+
+                return {
+                    metric: normalized.metric,
+                    position: {
+                        x: Math.round(normalized.x) || 0,
+                        y: Math.round(normalized.y) || 0,
+                    },
+                    label: normalized.label,
+                    value: normalized.value,
+                    widget: normalized.widget,
+                };
+            }),
     };
 }

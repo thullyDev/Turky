@@ -1,3 +1,7 @@
+import type { TextBlockStyle } from "./text-block";
+import type { OverlayTextStyle } from "./text-style";
+import type { OverlayWidgetConfig } from "./widget-config";
+
 export type OverlayMetric =
     | "cpu"
     | "ram"
@@ -19,6 +23,10 @@ export interface OverlayItem {
     enabled: boolean;
     x: number;
     y: number;
-    size: number;
-    color: OverlayColor;
+    label: TextBlockStyle;
+    value: TextBlockStyle;
+    widget: OverlayWidgetConfig;
+    size?: number;
+    color?: OverlayColor;
+    style?: OverlayTextStyle;
 }

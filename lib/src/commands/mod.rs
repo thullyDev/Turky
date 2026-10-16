@@ -1,5 +1,6 @@
 pub mod device;
 pub mod display;
+pub mod font;
 pub mod overlay;
 
 pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
@@ -8,6 +9,8 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
         display::render_image,
         display::render_gif,
         display::note_presented,
-        overlay::set_overlay_config
+        overlay::set_overlay_config,
+        font::download_font,
+        font::list_downloaded_fonts,
     ])
 }

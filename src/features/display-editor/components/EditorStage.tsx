@@ -1,6 +1,7 @@
 import type { PointerEvent, RefObject } from "react";
 
-import { sampleStatLabel, statTextStyle, type OverlayItem, type OverlayMetric } from "../../../entities/overlay";
+import type { OverlayItem, OverlayMetric } from "../../../entities/overlay";
+import { StatWidget } from "./widgets/StatWidget";
 
 interface EditorStageProps {
     stageRef: RefObject<HTMLDivElement | null>;
@@ -11,6 +12,7 @@ interface EditorStageProps {
     items: OverlayItem[];
     selected: OverlayMetric;
     dragging: OverlayMetric | null;
+    customFamilies: Record<string, string>;
     onSelect: (metric: OverlayMetric) => void;
     onPointerMove: (event: PointerEvent) => void;
     onPointerUp: (event: PointerEvent) => void;
@@ -27,6 +29,7 @@ export function EditorStage({
     items,
     selected,
     dragging,
+    customFamilies,
     onSelect,
     onPointerMove,
     onPointerUp,
@@ -63,12 +66,15 @@ export function EditorStage({
                             style={{
                                 left: item.x * fitScale,
                                 top: item.y * fitScale,
-                                ...statTextStyle(item, fitScale),
                             }}
                             onPointerDown={(event) => onStatPointerDown(item.metric, event)}
                             onClick={() => onSelect(item.metric)}
                         >
-                            {sampleStatLabel(item.metric)}
+                            <StatWidget
+                                item={item}
+                                scale={fitScale}
+                                customFamilies={customFamilies}
+                            />
                         </button>
                     );
                 })}
