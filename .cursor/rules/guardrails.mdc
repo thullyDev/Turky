@@ -1,0 +1,43 @@
+---
+description: Turky backend architecture guardrails (Rust / Tauri)
+globs: lib/**/*
+alwaysApply: true
+---
+
+# Turky backend guardrails
+
+## Dependency injection (required)
+
+Follow the same pattern as `DisplayService` and `OverlayService`:
+
+1. **Wire dependencies in `app.rs` setup** — construct adapters, stores, and clients there (or in dedicated factory code called from setup). Do not reach for global state, `AppHandle` paths, or `reqwest` inside services from commands.
+2. **Services take dependencies through `new(...)`** — store collaborators as fields (`FontStore`, `reqwest::Client`, `OverlayService`, etc.). No hidden construction inside the service.
+3. **Tauri commands stay thin** — lock `AppState` if needed, then delegate to a service method. Commands must not contain business logic, filesystem layout, or HTTP details.
+4. **Schemas live under `schemas/`** — IPC-facing types (e.g. `DownloadedFontInfo`) belong in `schemas/*_schemas.rs`, not in `commands/`.
+
+### Example (font downloads)
+
+```rust
+// app.rs — compose graph
+let font_store = FontStore::new(fonts_dir);
+font_store.init()?;
+let font_service = FontService::new(font_store, reqwest::Client::new());
+let state = AppState::new(display_service, font_service);
+
+// commands/font.rs — delegate only
+state.fonts.download(&font_id, &url, &family).await
+```
+
+## Layering
+
+| Layer | Responsibility |
+| --- | --- |
+| `commands/` | Tauri IPC entrypoints, argument mapping, `AppState` access |
+| `services/` | Use cases and orchestration |
+| `adapters/` | USB, display, external IO boundaries |
+| `schemas/` | Serializable request/response and config types |
+| `devices/`, `factories/` | Device model and creation |
+
+## Tests
+
+Prefer unit tests on services and stores with temp directories or fakes. Avoid testing HTTP through Tauri commands when the service can be tested directly.

@@ -53,7 +53,21 @@ pub fn run() {
             let display_service =
                 services::display_service::DisplayService::new(device_service, overlay_service);
 
-            let state = AppState::new(display_service);
+            let fonts_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| format!("App data dir unavailable: {error}"))?
+                .join("fonts");
+
+            let font_store = services::font_store::FontStore::new(fonts_dir);
+            font_store.init()?;
+
+            let font_service = services::font_service::FontService::new(
+                font_store,
+                reqwest::Client::new(),
+            );
+
+            let state = AppState::new(display_service, font_service);
 
             app.manage(state);
 
