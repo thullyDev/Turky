@@ -78,6 +78,7 @@ export function DisplayEditor({
                 items={items}
                 selected={selected}
                 active={active}
+                previewScale={scale}
                 previewing={previewing}
                 canPreview={Boolean(mediaBytes)}
                 customFamilies={fonts.families}

@@ -6,6 +6,7 @@ import {
     hexToColor,
     type TextBlockStyle,
 } from "../../../entities/overlay";
+import { NumberStepper } from "./NumberStepper";
 
 interface TextBlockFieldsProps {
     block: TextBlockStyle;
@@ -32,18 +33,17 @@ export function TextBlockFields({
     const customReady =
         block.typography.customFontId &&
         customFamilies[block.typography.customFontId];
+    const gradient = block.gradient;
 
     return (
         <>
-            <label className="field">
-                <span className="muted">Size</span>
-                <input
-                    type="number"
-                    min={1}
-                    value={block.size}
-                    onChange={(event) => onChange({ size: Number(event.target.value) })}
-                />
-            </label>
+            <NumberStepper
+                label="Size"
+                value={block.size}
+                min={6}
+                max={96}
+                onChange={(size) => onChange({ size })}
+            />
             <label className="field">
                 <span className="muted">Color</span>
                 <input
@@ -59,23 +59,66 @@ export function TextBlockFields({
                     }
                 />
             </label>
-            <label className="field">
-                <span className="muted">Opacity</span>
+            <label className="field field-row">
                 <input
-                    type="range"
-                    min={0}
-                    max={255}
-                    value={block.color.a}
+                    type="checkbox"
+                    checked={gradient.enabled}
                     onChange={(event) =>
                         onChange({
-                            color: {
-                                ...block.color,
-                                a: Number(event.target.value),
-                            },
+                            gradient: { ...gradient, enabled: event.target.checked },
                         })
                     }
                 />
+                <span>Text gradient</span>
             </label>
+            {gradient.enabled ? (
+                <>
+                    <label className="field">
+                        <span className="muted">Gradient end</span>
+                        <input
+                            type="color"
+                            value={colorToHex(gradient.endColor)}
+                            onChange={(event) =>
+                                onChange({
+                                    gradient: {
+                                        ...gradient,
+                                        endColor: {
+                                            ...hexToColor(event.target.value),
+                                            a: gradient.endColor.a,
+                                        },
+                                    },
+                                })
+                            }
+                        />
+                    </label>
+                    <NumberStepper
+                        label="Gradient angle"
+                        value={gradient.angle}
+                        min={0}
+                        max={360}
+                        step={5}
+                        onChange={(angle) =>
+                            onChange({
+                                gradient: { ...gradient, angle },
+                            })
+                        }
+                    />
+                </>
+            ) : null}
+            <NumberStepper
+                label="Opacity"
+                value={block.color.a}
+                min={0}
+                max={255}
+                onChange={(alpha) =>
+                    onChange({
+                        color: {
+                            ...block.color,
+                            a: alpha,
+                        },
+                    })
+                }
+            />
             <label className="field">
                 <span className="muted">Font</span>
                 <select
@@ -146,17 +189,14 @@ export function TextBlockFields({
                 />
                 <span>Uppercase</span>
             </label>
-            <label className="field">
-                <span className="muted">Letter spacing</span>
-                <input
-                    type="number"
-                    step={0.1}
-                    value={block.typography.letterSpacing}
-                    onChange={(event) =>
-                        onTypographyChange({ letterSpacing: Number(event.target.value) })
-                    }
-                />
-            </label>
+            <NumberStepper
+                label="Letter spacing"
+                value={block.typography.letterSpacing}
+                min={-2}
+                max={4}
+                step={0.1}
+                onChange={(letterSpacing) => onTypographyChange({ letterSpacing })}
+            />
             <label className="field field-stack">
                 <span className="muted">Custom CSS</span>
                 <textarea

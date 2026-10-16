@@ -1,17 +1,29 @@
+import type { CSSProperties, ReactNode } from "react";
+
 import {
-    colorToCss,
     resolveWidgetLabel,
     sampleForMetric,
     textBlockStyle,
+    colorToCss,
     type OverlayItem,
 } from "../../../../entities/overlay";
 
 import { scopedWidgetCss } from "./stat-widget-scope";
+import { BarChrome } from "./BarChrome";
+import { RingChrome } from "./RingChrome";
+
+export type StatInspectPart = "label" | "value" | "chrome";
+
+export interface StatWidgetInspect {
+    active: StatInspectPart | null;
+    onSelect: (part: StatInspectPart) => void;
+}
 
 interface StatWidgetProps {
     item: OverlayItem;
     scale: number;
     customFamilies: Record<string, string>;
+    inspect?: StatWidgetInspect;
 }
 
 function fillColor(item: OverlayItem): string {
@@ -22,7 +34,45 @@ function fillColor(item: OverlayItem): string {
     return colorToCss(item.value.color);
 }
 
-export function StatWidget({ item, scale, customFamilies }: StatWidgetProps) {
+function InspectTarget({
+    part,
+    inspect,
+    className,
+    style,
+    children,
+}: {
+    part: StatInspectPart;
+    inspect: StatWidgetInspect | undefined;
+    className?: string;
+    style?: CSSProperties;
+    children: ReactNode;
+}) {
+    if (!inspect) {
+        return (
+            <span className={className} style={style}>
+                {children}
+            </span>
+        );
+    }
+
+    const active = inspect.active === part;
+
+    return (
+        <button
+            type="button"
+            className={`stat-widget-hit ${className ?? ""}${active ? " is-inspect-active" : ""}`}
+            style={style}
+            onClick={(event) => {
+                event.stopPropagation();
+                inspect.onSelect(part);
+            }}
+        >
+            {children}
+        </button>
+    );
+}
+
+export function StatWidget({ item, scale, customFamilies, inspect }: StatWidgetProps) {
     const sample = sampleForMetric(item.metric);
     const ratio = sample.ratio ?? 0;
     const label = resolveWidgetLabel(item);
@@ -32,138 +82,99 @@ export function StatWidget({ item, scale, customFamilies }: StatWidgetProps) {
     const fill = fillColor(item);
     const scopeClass = `stat-scope-${item.metric}`;
     const scopedCss = scopedWidgetCss(item.metric, item);
-    const barRadius = item.widget.barBorderRadius * scale;
+    const rootClass = inspect ? "stat-widget stat-widget-is-inspect" : "stat-widget";
+    const chromeShellClass = item.widget.chromeCss.trim()
+        ? "stat-widget-chrome-shell has-custom-chrome"
+        : "stat-widget-chrome-shell";
+
+    const labelNode = item.widget.showLabel ? (
+        <InspectTarget part="label" inspect={inspect} className="stat-widget-label" style={labelStyle}>
+            {label}
+        </InspectTarget>
+    ) : null;
+
+    const valueNode = item.widget.showValue ? (
+        <InspectTarget part="value" inspect={inspect} className="stat-widget-value" style={valueStyle}>
+            {sample.valueText}
+        </InspectTarget>
+    ) : null;
+
+    const chromePlaceholder =
+        inspect && item.widget.kind === "text" ? (
+            <InspectTarget part="chrome" inspect={inspect} className="stat-widget-chrome-slot">
+                <span className="stat-widget-chrome-slot-label">Bar / ring / stack</span>
+            </InspectTarget>
+        ) : null;
 
     if (item.widget.kind === "text") {
         return (
-            <div className={`stat-widget ${scopeClass}`}>
+            <div className={`${rootClass} ${scopeClass}`}>
                 {scopedCss ? <style>{scopedCss}</style> : null}
-                {item.widget.showLabel ? (
-                    <span className="stat-widget-label" style={labelStyle}>
-                        {label}
-                    </span>
-                ) : null}
-                {item.widget.showValue ? (
-                    <span className="stat-widget-value" style={valueStyle}>
-                        {sample.valueText}
-                    </span>
-                ) : null}
+                {labelNode}
+                {valueNode}
+                {chromePlaceholder}
             </div>
         );
     }
 
     if (item.widget.kind === "bar") {
         const width = item.widget.barWidth * scale;
-        const height = item.widget.barHeight * scale;
 
         return (
-            <div className={`stat-widget stat-widget-bar ${scopeClass}`} style={{ width }}>
+            <div className={`${rootClass} stat-widget-bar ${scopeClass}`} style={{ width }}>
                 {scopedCss ? <style>{scopedCss}</style> : null}
-                {item.widget.showLabel ? (
-                    <span className="stat-widget-label" style={labelStyle}>
-                        {label}
-                    </span>
-                ) : null}
-                <div
-                    className="stat-widget-bar-track"
-                    style={{ height, background: track, borderRadius: barRadius }}
-                >
-                    <div
-                        className="stat-widget-bar-fill"
-                        style={{
-                            width: `${Math.round(ratio * 100)}%`,
-                            background: fill,
-                            borderRadius: barRadius,
-                        }}
-                    />
-                </div>
-                {item.widget.showValue ? (
-                    <span className="stat-widget-value" style={valueStyle}>
-                        {sample.valueText}
-                    </span>
-                ) : null}
+                {labelNode}
+                <InspectTarget part="chrome" inspect={inspect} className="stat-widget-chrome-bar">
+                    <div className={chromeShellClass}>
+                        <BarChrome widget={item.widget} track={track} fill={fill} ratio={ratio} scale={scale} />
+                    </div>
+                </InspectTarget>
+                {valueNode}
             </div>
         );
     }
 
     if (item.widget.kind === "ring") {
         const size = item.widget.ringSize * scale;
-        const stroke = item.widget.ringThickness * scale;
-        const radius = (size - stroke) / 2;
-        const circumference = 2 * Math.PI * radius;
-        const dash = circumference * ratio;
 
         return (
-            <div className={`stat-widget stat-widget-ring ${scopeClass}`} style={{ width: size }}>
+            <div
+                className={`${rootClass} stat-widget-ring ${scopeClass}`}
+                style={{ width: size, height: size }}
+            >
                 {scopedCss ? <style>{scopedCss}</style> : null}
-                <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                    <circle
-                        className="stat-widget-ring-track"
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        fill="none"
-                        stroke={track}
-                        strokeWidth={stroke}
-                    />
-                    <circle
-                        className="stat-widget-ring-fill"
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        fill="none"
-                        stroke={fill}
-                        strokeWidth={stroke}
-                        strokeLinecap="round"
-                        strokeDasharray={`${dash} ${circumference}`}
-                        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                    />
-                </svg>
+                <InspectTarget part="chrome" inspect={inspect} className="stat-widget-chrome-ring">
+                    <div className={chromeShellClass}>
+                        <RingChrome
+                            widget={item.widget}
+                            metric={item.metric}
+                            track={track}
+                            fill={fill}
+                            ratio={ratio}
+                            scale={scale}
+                        />
+                    </div>
+                </InspectTarget>
                 <div className="stat-widget-ring-center">
-                    {item.widget.showLabel ? (
-                        <span className="stat-widget-label" style={labelStyle}>
-                            {label}
-                        </span>
-                    ) : null}
-                    {item.widget.showValue ? (
-                        <span className="stat-widget-value" style={valueStyle}>
-                            {sample.valueText}
-                        </span>
-                    ) : null}
+                    {labelNode}
+                    {valueNode}
                 </div>
             </div>
         );
     }
 
     const width = item.widget.barWidth * scale;
-    const height = item.widget.barHeight * scale;
 
     return (
-        <div className={`stat-widget stat-widget-stack ${scopeClass}`} style={{ width }}>
+        <div className={`${rootClass} stat-widget-stack ${scopeClass}`} style={{ width }}>
             {scopedCss ? <style>{scopedCss}</style> : null}
-            {item.widget.showLabel ? (
-                <span className="stat-widget-label" style={labelStyle}>
-                    {label}
-                </span>
-            ) : null}
-            <div
-                className="stat-widget-bar-track"
-                style={{ height, background: track, borderRadius: barRadius }}
-            >
-                <div
-                    className="stat-widget-bar-fill"
-                    style={{
-                        width: `${Math.round(ratio * 100)}%`,
-                        background: fill,
-                        borderRadius: barRadius,
-                    }}
-                />
-            </div>
-            {item.widget.showValue ? (
-                <span className="stat-widget-value" style={valueStyle}>
-                    {sample.valueText}
-                </span>
-            ) : null}
+            {labelNode}
+            <InspectTarget part="chrome" inspect={inspect} className="stat-widget-chrome-bar">
+                <div className={chromeShellClass}>
+                    <BarChrome widget={item.widget} track={track} fill={fill} ratio={ratio} scale={scale} />
+                </div>
+            </InspectTarget>
+            {valueNode}
         </div>
     );
 }

@@ -10,6 +10,7 @@ interface EditorSidebarProps {
     items: OverlayItem[];
     selected: OverlayMetric;
     active: OverlayItem | undefined;
+    previewScale: number;
     previewing: boolean;
     canPreview: boolean;
     customFamilies: Record<string, string>;
@@ -30,6 +31,7 @@ export function EditorSidebar({
     items,
     selected,
     active,
+    previewScale,
     previewing,
     canPreview,
     customFamilies,
@@ -71,6 +73,7 @@ export function EditorSidebar({
             {active ? (
                 <StatInspector
                     item={active}
+                    previewScale={previewScale}
                     customFamilies={customFamilies}
                     isDownloaded={isDownloaded}
                     loadingFontId={loadingFontId}

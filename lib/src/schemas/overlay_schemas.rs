@@ -134,6 +134,36 @@ impl Default for OverlayTextBlock {
     }
 }
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum BarChromeStyle {
+    #[default]
+    Solid,
+    Gradient,
+    Dotted,
+    Segmented,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum RingChromeStyle {
+    #[default]
+    Solid,
+    Gradient,
+    Dashed,
+    Dotted,
+    Segmented,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum RingLineCap {
+    #[default]
+    Round,
+    Butt,
+    Square,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct OverlayWidgetConfig {
@@ -144,14 +174,30 @@ pub struct OverlayWidgetConfig {
     pub bar_width: u32,
     pub bar_height: u32,
     pub bar_border_radius: u32,
+    pub bar_style: BarChromeStyle,
+    pub bar_dot_size: u32,
+    pub bar_dot_gap: u32,
+    pub bar_segment_size: u32,
+    pub bar_segment_gap: u32,
     pub bar_track_css: String,
     pub bar_fill_css: String,
     pub ring_size: u32,
     pub ring_thickness: u32,
+    pub ring_style: RingChromeStyle,
+    pub ring_line_cap: RingLineCap,
+    pub ring_segment_count: u32,
+    pub ring_segment_gap: u32,
+    pub ring_dash_length: u32,
+    pub ring_dash_gap: u32,
+    pub ring_dot_size: u32,
+    pub ring_dot_gap: u32,
     pub ring_track_css: String,
     pub ring_fill_css: String,
+    pub chrome_css: String,
     pub track_color: OverlayColor,
     pub fill_color: OverlayColor,
+    pub fill_gradient_color: OverlayColor,
+    pub fill_gradient_angle: u32,
 }
 
 impl Default for OverlayWidgetConfig {
@@ -164,12 +210,26 @@ impl Default for OverlayWidgetConfig {
             bar_width: 128,
             bar_height: 10,
             bar_border_radius: 999,
+            bar_style: BarChromeStyle::Solid,
+            bar_dot_size: 3,
+            bar_dot_gap: 8,
+            bar_segment_size: 10,
+            bar_segment_gap: 4,
             bar_track_css: String::new(),
             bar_fill_css: String::new(),
             ring_size: 56,
             ring_thickness: 7,
+            ring_style: RingChromeStyle::Solid,
+            ring_line_cap: RingLineCap::Round,
+            ring_segment_count: 12,
+            ring_segment_gap: 4,
+            ring_dash_length: 10,
+            ring_dash_gap: 6,
+            ring_dot_size: 3,
+            ring_dot_gap: 5,
             ring_track_css: String::new(),
             ring_fill_css: String::new(),
+            chrome_css: String::new(),
             track_color: OverlayColor {
                 r: 255,
                 g: 255,
@@ -182,6 +242,13 @@ impl Default for OverlayWidgetConfig {
                 b: 246,
                 a: 255,
             },
+            fill_gradient_color: OverlayColor {
+                r: 56,
+                g: 189,
+                b: 248,
+                a: 255,
+            },
+            fill_gradient_angle: 90,
         }
     }
 }

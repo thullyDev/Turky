@@ -14,8 +14,7 @@ export function textBlockStyle(
 ): CSSProperties {
     const typography = block.typography;
     const spacing = letterSpacingForPreset(typography.fontPreset, typography.letterSpacing) * scale;
-
-    return {
+    const base: CSSProperties = {
         fontFamily: fontFamilyForTypography(typography, customFamilies),
         fontSize: block.size * scale,
         fontWeight: typography.fontWeight,
@@ -25,4 +24,20 @@ export function textBlockStyle(
         textTransform: typography.uppercase ? "uppercase" : "none",
         color: colorToCss(block.color),
     };
+
+    if (block.gradient?.enabled) {
+        const from = colorToCss(block.color);
+        const to = colorToCss(block.gradient.endColor);
+
+        return {
+            ...base,
+            color: "transparent",
+            backgroundImage: `linear-gradient(${block.gradient.angle}deg, ${from}, ${to})`,
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+        };
+    }
+
+    return base;
 }

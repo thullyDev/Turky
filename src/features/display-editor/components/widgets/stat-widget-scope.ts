@@ -28,5 +28,9 @@ export function scopedWidgetCss(metric: string, item: OverlayItem): string {
         rules.push(`${root} .stat-widget-ring-fill { ${item.widget.ringFillCss.trim()} }`);
     }
 
+    if (item.widget.chromeCss.trim()) {
+        rules.push(`${root} .stat-widget-chrome-shell { ${item.widget.chromeCss.trim()} }`);
+    }
+
     return rules.join("\n");
 }
