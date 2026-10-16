@@ -54,6 +54,11 @@ export function DisplayEditor({
     return (
         <div className="editor">
             <div ref={paneRef} className="editor-preview">
+                {previewing ? (
+                    <div className="editor-display-loading" aria-live="polite">
+                        LOADING....
+                    </div>
+                ) : null}
                 <EditorStage
                     stageRef={stageRef}
                     stageWidth={stageWidth}

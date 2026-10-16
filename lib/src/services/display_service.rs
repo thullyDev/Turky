@@ -5,6 +5,7 @@ use crate::devices::device_id::DeviceId;
 use crate::schemas::overlay_schemas::OverlayConfig;
 use crate::services::device_service::DeviceService;
 use crate::services::gif_cutter::GifFrame;
+use crate::services::loading_frame;
 use crate::services::overlay_service::OverlayService;
 
 use image::RgbaImage;
@@ -34,13 +35,30 @@ impl DisplayService {
         self.overlay_service.set_config(config);
     }
 
-    pub fn render_image(&mut self, image: &RgbaImage, device_id: &DeviceId) {
+    pub fn show_loading_screen(&mut self, device_id: &DeviceId) {
+        let Some(device) = self.device_serv.registry().get_mut(device_id) else {
+            return;
+        };
+
+        let frame = loading_frame::render(device.info.width, device.info.height);
+
+        if device.adapter.send_frame(&frame).is_err() {
+            eprintln!("Failed to send loading frame to display");
+        }
+    }
+
+    pub fn send_image(&mut self, image: &RgbaImage, device_id: &DeviceId) {
         if let Some(device) = self.device_serv.registry().get_mut(device_id) {
             device
                 .adapter
                 .send_frame(image)
                 .expect("Failed to send frame");
         }
+    }
+
+    pub fn render_image(&mut self, image: &RgbaImage, device_id: &DeviceId) {
+        self.show_loading_screen(device_id);
+        self.send_image(image, device_id);
     }
 
     pub fn render_gif(
@@ -57,6 +75,8 @@ impl DisplayService {
         bytes: &[u8],
         device_id: &DeviceId,
     ) -> Result<GifLaunch, String> {
+        self.show_loading_screen(device_id);
+
         let decoded = self.overlay_service.cut(bytes)?;
 
         if decoded.is_empty() || self.device_serv.registry().get(device_id).is_none() {
@@ -207,7 +227,7 @@ impl DisplayService {
 
                 let frame = self.overlay_service.compose(&gif_frame.image);
 
-                self.render_image(&frame, device_id);
+                self.send_image(&frame, device_id);
 
                 next += gif_frame.delay;
 

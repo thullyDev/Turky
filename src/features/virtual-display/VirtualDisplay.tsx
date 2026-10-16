@@ -10,7 +10,6 @@ import type { ClipBegin, ClipFrame, FrameEvent, OverlayEvent, OverlayPatch } fro
 export function VirtualDisplay() {
     const gifRef = useRef<HTMLCanvasElement>(null);
     const overlayRef = useRef<HTMLCanvasElement>(null);
-
     useEffect(() => {
         document.documentElement.style.margin = "0";
         document.documentElement.style.padding = "0";

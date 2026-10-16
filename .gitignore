@@ -26,3 +26,6 @@ notes.txt
 todo.txt
 
 .local/
+
+# Local bulk GitHub issue tooling (portal backlog; uses GH_TOKEN)
+/scripts/
