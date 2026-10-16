@@ -2,121 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef } from "react";
 
-interface FrameEvent {
-    width: number;
-    height: number;
-    jpeg: string;
-}
+import { CANVAS_STYLE } from "./constants";
+import { frameIndex } from "./lib/frame-index";
+import { bitmapFrom, closeBitmap, decodeBase64 } from "./lib/image-decode";
+import type { ClipBegin, ClipFrame, FrameEvent, OverlayEvent, OverlayPatch } from "./types";
 
-interface ClipBegin {
-    id: number;
-    width: number;
-    height: number;
-    frame_count: number;
-    delays_ms: number[];
-}
-
-interface ClipFrame {
-    id: number;
-    index: number;
-    jpeg: string;
-}
-
-interface OverlayEvent {
-    id: number;
-    png: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
-
-interface OverlayPatch {
-    bitmap: ImageBitmap;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
-
-const canvasStyle: React.CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    margin: 0,
-    padding: 0,
-    border: 0,
-    display: "block",
-    background: "transparent",
-};
-
-export function frameIndex(delays: number[], started: number, now: number): number {
-    let cycle = 0;
-
-    for (const delay of delays) {
-        cycle += delay;
-    }
-
-    if (cycle <= 0 || delays.length === 0) {
-        return 0;
-    }
-
-    let time = (now - started) % cycle;
-
-    for (let index = 0; index < delays.length; index++) {
-        const delay = delays[index];
-
-        if (time < delay) {
-            return index;
-        }
-
-        time -= delay;
-    }
-
-    return delays.length - 1;
-}
-
-function decodeBase64(value: string): Uint8Array {
-    const binary = atob(value);
-    const bytes = new Uint8Array(binary.length);
-
-    for (let index = 0; index < binary.length; index++) {
-        bytes[index] = binary.charCodeAt(index);
-    }
-
-    return bytes;
-}
-
-function bitmapFrom(bytes: Uint8Array, type: string): Promise<ImageBitmap> {
-    const blob = new Blob([bytes], { type });
-
-    return createImageBitmap(blob).catch(
-        () =>
-            new Promise<ImageBitmap>((resolve, reject) => {
-                const url = URL.createObjectURL(blob);
-                const image = new Image();
-
-                image.onload = () => {
-                    URL.revokeObjectURL(url);
-                    createImageBitmap(image).then(resolve, reject);
-                };
-
-                image.onerror = () => {
-                    URL.revokeObjectURL(url);
-                    reject(new Error(`Could not decode ${type}`));
-                };
-
-                image.src = url;
-            }),
-    );
-}
-
-function closeBitmap(bitmap: ImageBitmap | undefined) {
-    bitmap?.close();
-}
-
-export default function VirtualDisplay() {
+export function VirtualDisplay() {
     const gifRef = useRef<HTMLCanvasElement>(null);
     const overlayRef = useRef<HTMLCanvasElement>(null);
 
@@ -483,8 +374,8 @@ export default function VirtualDisplay() {
 
     return (
         <>
-            <canvas ref={gifRef} style={{ ...canvasStyle, background: "#000" }} />
-            <canvas ref={overlayRef} style={{ ...canvasStyle, pointerEvents: "none" }} />
+            <canvas ref={gifRef} style={{ ...CANVAS_STYLE, background: "#000" }} />
+            <canvas ref={overlayRef} style={{ ...CANVAS_STYLE, pointerEvents: "none" }} />
         </>
     );
 }

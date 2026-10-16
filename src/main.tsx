@@ -1,7 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import VirtualDisplay from "./VirtualDisplay";
+
+import { App } from "./app/App";
+import { VirtualDisplay } from "./features/virtual-display";
 
 const isVirtualDisplay =
     new URLSearchParams(window.location.search).has("virtual-display");
