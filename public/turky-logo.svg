@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 960 512" role="img" aria-label="Turky">
+  <rect width="960" height="512" fill="#000"/>
+
+  <!-- Same mark as turky-icon.svg (512×512, center crop) -->
+  <svg x="0" y="0" width="512" height="512" viewBox="0 0 512 512" aria-hidden="true">
+    <image xlink:href="turky-mascot.jpg" x="0" y="0" width="512" height="512" preserveAspectRatio="xMidYMid slice"/>
+  </svg>
+
+  <text
+    x="736"
+    y="300"
+    text-anchor="middle"
+    fill="#f5f3ff"
+    font-family="Georgia, 'Palatino Linotype', serif"
+    font-size="112"
+    font-weight="700"
+    font-style="italic"
+    letter-spacing="-2"
+  >Turky</text>
+</svg>

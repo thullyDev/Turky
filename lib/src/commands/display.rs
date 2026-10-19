@@ -13,29 +13,44 @@ pub fn render_image(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let bytes = owned_media(request)?;
+    state.playback.fetch_add(1, Ordering::AcqRel);
+
+    let device_id = {
+        let mut display = state
+            .display
+            .lock()
+            .map_err(|error| format!("Failed to lock DisplayService: {error}"))?;
+
+        // TODO: Get the selected device ID from the frontend.
+        let device_id = display
+            .device_serv
+            .registry()
+            .first_mut()
+            .map(|device| device.info.id.clone());
+
+        if let Some(ref id) = device_id {
+            display.show_loading_screen(id);
+        } else {
+            println!("No display device available");
+        }
+
+        device_id
+    };
+
+    let Some(device_id) = device_id else {
+        return Ok(());
+    };
+
     let image = image::load_from_memory(&bytes)
         .map_err(|error| format!("Failed to decode image: {error}"))?
         .to_rgba8();
-
-    state.playback.fetch_add(1, Ordering::AcqRel);
 
     let mut display = state
         .display
         .lock()
         .map_err(|error| format!("Failed to lock DisplayService: {error}"))?;
 
-    // TODO: Get the selected device ID from the frontend.
-    let device_id = display
-        .device_serv
-        .registry()
-        .first_mut()
-        .map(|device| device.info.id.clone());
-
-    if let Some(device_id) = device_id {
-        display.render_image(&image, &device_id);
-    } else {
-        println!("No display device available");
-    }
+    display.send_image(&image, &device_id);
 
     Ok(())
 }
