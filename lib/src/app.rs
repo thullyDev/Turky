@@ -72,7 +72,17 @@ pub fn run() {
                 reqwest::Client::new(),
             );
 
-            let state = AppState::new(display_service, font_service);
+            let creations_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| format!("App data dir unavailable: {error}"))?
+                .join("creations");
+
+            let creation_store = services::creation_store::CreationStore::new(creations_dir);
+            let creation_service = services::creation_service::CreationService::new(creation_store);
+            creation_service.init()?;
+
+            let state = AppState::new(display_service, font_service, creation_service);
 
             app.manage(state);
 

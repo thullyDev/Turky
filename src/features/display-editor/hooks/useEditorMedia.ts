@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function useEditorMedia(onClearStatus: () => void) {
     const [mediaUrl, setMediaUrl] = useState<string | null>(null);
@@ -13,23 +13,39 @@ export function useEditorMedia(onClearStatus: () => void) {
         };
     }, [mediaUrl]);
 
+    const loadMedia = useCallback((buffer: ArrayBuffer, type: string) => {
+        setMediaUrl((previous) => {
+            if (previous) {
+                URL.revokeObjectURL(previous);
+            }
+
+            const blob = new Blob([buffer], { type });
+            return URL.createObjectURL(blob);
+        });
+        setMediaBytes(buffer);
+        setMediaType(type || "application/octet-stream");
+    }, []);
+
     async function pickMedia(file: File | undefined) {
         if (!file) {
             return;
         }
 
         const buffer = await file.arrayBuffer();
+        loadMedia(buffer, file.type);
+        onClearStatus();
+    }
 
+    function clearMedia() {
         setMediaUrl((previous) => {
             if (previous) {
                 URL.revokeObjectURL(previous);
             }
 
-            return URL.createObjectURL(file);
+            return null;
         });
-        setMediaBytes(buffer);
-        setMediaType(file.type);
-        onClearStatus();
+        setMediaBytes(null);
+        setMediaType(null);
     }
 
     return {
@@ -37,5 +53,7 @@ export function useEditorMedia(onClearStatus: () => void) {
         mediaBytes,
         mediaType,
         pickMedia,
+        loadMedia,
+        clearMedia,
     };
 }

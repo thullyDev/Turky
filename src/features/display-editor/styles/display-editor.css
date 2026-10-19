@@ -1,6 +1,85 @@
+.editor-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+
+.editor-chrome-back {
+  flex-shrink: 0;
+}
+
+.editor-chrome-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.document-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.document-title-display {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 500;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  cursor: text;
+  text-align: left;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-title-display:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.document-title-display.is-placeholder {
+  color: var(--muted);
+}
+
+.document-title-input {
+  flex: 1;
+  min-width: 8rem;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 500;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.document-title-status {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
 .editor {
   display: flex;
-  height: 100%;
+  flex: 1;
   min-height: 0;
 }
 

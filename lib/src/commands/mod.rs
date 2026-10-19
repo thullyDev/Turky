@@ -1,3 +1,4 @@
+pub mod creation;
 pub mod device;
 pub mod display;
 pub mod font;
@@ -12,5 +13,12 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
         overlay::set_overlay_config,
         font::download_font,
         font::list_downloaded_fonts,
+        creation::list_creations,
+        creation::get_creation,
+        creation::get_creation_media,
+        creation::save_creation,
+        creation::rename_creation,
+        creation::duplicate_creation,
+        creation::delete_creation,
     ])
 }

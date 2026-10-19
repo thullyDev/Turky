@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { OverlayItem, OverlayMetric } from "../../entities/overlay";
+import type { DisplayInfo } from "../../shared/types/display";
 import { useDownloadedFonts } from "../../shared/hooks/useDownloadedFonts";
 import { useElementSize } from "../../shared/hooks/useElementSize";
 import { fitScale as computeFitScale } from "../../shared/lib/fit-scale";
@@ -14,27 +15,58 @@ import { useStatDrag } from "./hooks/useStatDrag";
 import { hasPreviewMedia } from "./lib/preview-media";
 import "./styles/display-editor.css";
 
+export interface DisplayEditorSaveContext {
+    items: OverlayItem[];
+    mediaBytes: ArrayBuffer | null;
+    mediaType: string | null;
+    display: DisplayInfo;
+}
+
 export interface DisplayEditorProps {
     items: OverlayItem[];
     onChange: (items: OverlayItem[]) => void;
     onStatus: (message: string) => void;
     status?: string;
+    canvasDisplay?: Pick<DisplayInfo, "width" | "height"> | null;
+    pendingMedia?: { bytes: ArrayBuffer; type: string } | null;
+    onPendingMediaApplied?: () => void;
+    autoSaveEnabled?: boolean;
+    onAutoSaveDraft?: (context: DisplayEditorSaveContext) => void | Promise<void>;
+    onContextChange?: (context: DisplayEditorSaveContext) => void;
 }
+
+const AUTO_SAVE_MS = 1400;
 
 export function DisplayEditor({
     items,
     onChange,
     onStatus,
     status = "",
+    canvasDisplay,
+    pendingMedia,
+    onPendingMediaApplied,
+    autoSaveEnabled = true,
+    onAutoSaveDraft,
+    onContextChange,
 }: DisplayEditorProps) {
     const stageRef = useRef<HTMLDivElement>(null);
     const { ref: paneRef, size: paneSize } = useElementSize<HTMLDivElement>();
-    const display = useDisplayInfo();
+    const liveDisplay = useDisplayInfo();
+    const display = useMemo(
+        () =>
+            canvasDisplay
+                ? { ...liveDisplay, width: canvasDisplay.width, height: canvasDisplay.height }
+                : liveDisplay,
+        [canvasDisplay, liveDisplay],
+    );
     const patchItem = useOverlayItemPatch(items, onChange);
-    const { mediaUrl, mediaBytes, mediaType, pickMedia } = useEditorMedia(() => onStatus(""));
+    const { mediaUrl, mediaBytes, mediaType, pickMedia, loadMedia } =
+        useEditorMedia(() => onStatus(""));
     const { previewing, sendPreview } = useDisplayPreview(items, onStatus);
     const [selected, setSelected] = useState<OverlayMetric>("cpu");
     const fonts = useDownloadedFonts();
+    const [hydrated, setHydrated] = useState(!pendingMedia);
+    const skipNextAutoSave = useRef(true);
 
     const scale = computeFitScale(paneSize.w, paneSize.h, display);
     const stageWidth = display.width * scale;
@@ -52,6 +84,57 @@ export function DisplayEditor({
 
     const active = items.find((item) => item.metric === selected);
     const canPreview = hasPreviewMedia(mediaUrl, mediaBytes, mediaType);
+
+    useEffect(() => {
+        if (!pendingMedia) {
+            setHydrated(true);
+            return;
+        }
+
+        setHydrated(false);
+        loadMedia(pendingMedia.bytes, pendingMedia.type);
+        onPendingMediaApplied?.();
+        setHydrated(true);
+    }, [pendingMedia, loadMedia, onPendingMediaApplied]);
+
+    function saveContext(): DisplayEditorSaveContext {
+        return {
+            items,
+            mediaBytes,
+            mediaType,
+            display,
+        };
+    }
+
+    useEffect(() => {
+        onContextChange?.(saveContext());
+    }, [items, mediaBytes, mediaType, display.width, display.height, onContextChange]);
+
+    useEffect(() => {
+        if (!autoSaveEnabled || !hydrated || !onAutoSaveDraft) {
+            return;
+        }
+
+        if (skipNextAutoSave.current) {
+            skipNextAutoSave.current = false;
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            void onAutoSaveDraft(saveContext());
+        }, AUTO_SAVE_MS);
+
+        return () => window.clearTimeout(timer);
+    }, [
+        autoSaveEnabled,
+        hydrated,
+        onAutoSaveDraft,
+        items,
+        mediaBytes,
+        mediaType,
+        display.width,
+        display.height,
+    ]);
 
     return (
         <div className="editor">

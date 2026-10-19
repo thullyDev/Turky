@@ -83,10 +83,10 @@ export function EditorSidebar({
                 />
             ) : null}
 
-                <p className="editor-status muted" aria-live="polite">
-                    {status ||
-                        "Pick a stat, style it as a widget (text, bar, ring, stack), drag it on the preview, then send with Preview."}
-                </p>
+            <p className="editor-status muted" aria-live="polite">
+                {status ||
+                    "Pick a stat, style it as a widget (text, bar, ring, stack), drag it on the preview, then send with Preview."}
+            </p>
         </aside>
     );
 }
