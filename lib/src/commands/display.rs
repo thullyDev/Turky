@@ -8,34 +8,26 @@ use crate::services::display_service::{GifLaunch, STATS_INTERVAL};
 use crate::state::AppState;
 
 #[tauri::command]
-pub fn render_image(
+pub fn render_image<R: Runtime>(
+    app: AppHandle<R>,
     request: tauri::ipc::Request<'_>,
-    state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let bytes = owned_media(request)?;
-    let image = image::load_from_memory(&bytes)
-        .map_err(|error| format!("Failed to decode image: {error}"))?
-        .to_rgba8();
+    let state = app.state::<AppState>();
+    let generation = state.playback.fetch_add(1, Ordering::AcqRel) + 1;
+    let playback = Arc::clone(&state.playback);
+    let presented = Arc::clone(&state.presented);
 
-    state.playback.fetch_add(1, Ordering::AcqRel);
-
-    let mut display = state
-        .display
-        .lock()
-        .map_err(|error| format!("Failed to lock DisplayService: {error}"))?;
-
-    // TODO: Get the selected device ID from the frontend.
-    let device_id = display
-        .device_serv
-        .registry()
-        .first_mut()
-        .map(|device| device.info.id.clone());
-
-    if let Some(device_id) = device_id {
-        display.render_image(&image, &device_id);
-    } else {
-        println!("No display device available");
-    }
+    std::thread::Builder::new()
+        .name("still-playback".into())
+        .spawn(move || {
+            if let Err(error) =
+                play_still_in_background(&app, &bytes, generation, &playback, &presented)
+            {
+                let _ = app.emit("media-error", error);
+            }
+        })
+        .map_err(|error| format!("Failed to start still image playback: {error}"))?;
 
     Ok(())
 }
@@ -71,10 +63,16 @@ pub fn note_presented(frames: u32, state: tauri::State<'_, AppState>) {
 }
 
 fn owned_media(request: tauri::ipc::Request<'_>) -> Result<Vec<u8>, String> {
-    match request.body() {
-        tauri::ipc::InvokeBody::Raw(bytes) => Ok(bytes.clone()),
-        tauri::ipc::InvokeBody::Json(_) => Err("Media must be sent as bytes.".into()),
+    let bytes = match request.body() {
+        tauri::ipc::InvokeBody::Raw(bytes) => bytes.clone(),
+        tauri::ipc::InvokeBody::Json(_) => return Err("Media must be sent as bytes.".into()),
+    };
+
+    if bytes.is_empty() {
+        return Err("Pick media before previewing.".into());
     }
+
+    Ok(bytes)
 }
 
 fn play_gif_in_background<R: Runtime>(
@@ -107,53 +105,31 @@ fn play_gif_in_background<R: Runtime>(
 
         match display.launch_gif(bytes, &device_id)? {
             GifLaunch::Empty => return Ok(()),
-            GifLaunch::Clip { width, height } => StartedGif::Clip {
+            GifLaunch::Clip { width, height } => StartedPlayback::StatsOnly {
                 device_id,
                 width,
                 height,
             },
-            GifLaunch::Animated(frames) => StartedGif::Animated { device_id, frames },
+            GifLaunch::Animated(frames) => StartedPlayback::Animated { device_id, frames },
+            GifLaunch::Still { .. } => unreachable!("launch_gif never returns Still"),
         }
     };
 
     match launch {
-        StartedGif::Clip {
+        StartedPlayback::StatsOnly {
             device_id,
             width,
             height,
-        } => {
-            let mut sampled_at = Instant::now();
-
-            loop {
-                if playback.load(Ordering::Acquire) != generation {
-                    return Ok(());
-                }
-
-                {
-                    let mut display = state
-                        .display
-                        .lock()
-                        .map_err(|error| format!("Failed to lock DisplayService: {error}"))?;
-
-                    if playback.load(Ordering::Acquire) != generation {
-                        return Ok(());
-                    }
-
-                    display.publish_stats_overlay(
-                        &device_id,
-                        width,
-                        height,
-                        Some(presented),
-                        &mut sampled_at,
-                    )?;
-                }
-
-                if !wait_for_playback(playback, generation, STATS_INTERVAL) {
-                    return Ok(());
-                }
-            }
-        }
-        StartedGif::Animated { device_id, frames } => {
+        } => run_stats_overlay_loop(
+            &state,
+            &device_id,
+            width,
+            height,
+            generation,
+            playback,
+            presented,
+        ),
+        StartedPlayback::Animated { device_id, frames } => {
             let mut display = state
                 .display
                 .lock()
@@ -167,14 +143,170 @@ fn play_gif_in_background<R: Runtime>(
                 playback.load(Ordering::Acquire) != generation
             })
         }
+        StartedPlayback::Still { .. } => {
+            unreachable!("launch_gif never returns Still playback")
+        }
     }
 }
 
-enum StartedGif {
-    Clip {
+fn play_still_in_background<R: Runtime>(
+    app: &AppHandle<R>,
+    bytes: &[u8],
+    generation: u64,
+    playback: &AtomicU64,
+    presented: &std::sync::atomic::AtomicU32,
+) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let image = image::load_from_memory(bytes)
+        .map_err(|error| format!("Failed to decode image: {error}"))?
+        .to_rgba8();
+
+    let launch = {
+        let mut display = state
+            .display
+            .lock()
+            .map_err(|error| format!("Failed to lock DisplayService: {error}"))?;
+
+        if playback.load(Ordering::Acquire) != generation {
+            return Ok(());
+        }
+
+        let device_id = display
+            .device_serv
+            .registry()
+            .first_mut()
+            .map(|device| device.info.id.clone());
+
+        let Some(device_id) = device_id else {
+            return Err("No display device available".into());
+        };
+
+        match display.launch_still(image, &device_id)? {
+            GifLaunch::Empty => return Ok(()),
+            GifLaunch::Clip { width, height } => StartedPlayback::StatsOnly {
+                device_id,
+                width,
+                height,
+            },
+            GifLaunch::Still { background } => StartedPlayback::Still {
+                device_id,
+                background,
+            },
+            GifLaunch::Animated { .. } => {
+                return Err("Still image launch returned animated GIF frames".into());
+            }
+        }
+    };
+
+    match launch {
+        StartedPlayback::StatsOnly {
+            device_id,
+            width,
+            height,
+        } => run_stats_overlay_loop(
+            &state,
+            &device_id,
+            width,
+            height,
+            generation,
+            playback,
+            presented,
+        ),
+        StartedPlayback::Still {
+            device_id,
+            background,
+        } => run_still_stats_loop(
+            &state,
+            &device_id,
+            background,
+            generation,
+            playback,
+        ),
+        StartedPlayback::Animated { .. } => Ok(()),
+    }
+}
+
+fn run_stats_overlay_loop(
+    state: &AppState,
+    device_id: &crate::devices::device_id::DeviceId,
+    width: u32,
+    height: u32,
+    generation: u64,
+    playback: &AtomicU64,
+    presented: &std::sync::atomic::AtomicU32,
+) -> Result<(), String> {
+    let mut sampled_at = Instant::now();
+
+    loop {
+        if playback.load(Ordering::Acquire) != generation {
+            return Ok(());
+        }
+
+        {
+            let mut display = state
+                .display
+                .lock()
+                .map_err(|error| format!("Failed to lock DisplayService: {error}"))?;
+
+            if playback.load(Ordering::Acquire) != generation {
+                return Ok(());
+            }
+
+            display.publish_stats_overlay(
+                device_id,
+                width,
+                height,
+                Some(presented),
+                &mut sampled_at,
+            )?;
+        }
+
+        if !wait_for_playback(playback, generation, STATS_INTERVAL) {
+            return Ok(());
+        }
+    }
+}
+
+fn run_still_stats_loop(
+    state: &AppState,
+    device_id: &crate::devices::device_id::DeviceId,
+    background: image::RgbaImage,
+    generation: u64,
+    playback: &AtomicU64,
+) -> Result<(), String> {
+    loop {
+        if playback.load(Ordering::Acquire) != generation {
+            return Ok(());
+        }
+
+        {
+            let mut display = state
+                .display
+                .lock()
+                .map_err(|error| format!("Failed to lock DisplayService: {error}"))?;
+
+            if playback.load(Ordering::Acquire) != generation {
+                return Ok(());
+            }
+
+            display.present_still_with_stats(&background, device_id);
+        }
+
+        if !wait_for_playback(playback, generation, STATS_INTERVAL) {
+            return Ok(());
+        }
+    }
+}
+
+enum StartedPlayback {
+    StatsOnly {
         device_id: crate::devices::device_id::DeviceId,
         width: u32,
         height: u32,
+    },
+    Still {
+        device_id: crate::devices::device_id::DeviceId,
+        background: image::RgbaImage,
     },
     Animated {
         device_id: crate::devices::device_id::DeviceId,

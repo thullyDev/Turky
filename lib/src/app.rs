@@ -50,8 +50,13 @@ pub fn run() {
                 services::system_stats_service::SystemStatsService::new(),
                 services::stats_painter::StatsPainter::new(),
             );
-            let display_service =
+            let mut display_service =
                 services::display_service::DisplayService::new(device_service, overlay_service);
+
+            if let Some(device) = display_service.device_serv.registry().first_mut() {
+                let device_id = device.info.id.clone();
+                display_service.show_black_screen(&device_id);
+            }
 
             let fonts_dir = app
                 .path()

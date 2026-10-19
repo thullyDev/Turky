@@ -48,14 +48,13 @@ export function EditorStage({
             {mediaUrl ? (
                 <img src={mediaUrl} alt="" className="editor-stage-media" draggable={false} />
             ) : (
-                <div className="editor-stage-empty">
-                    <span className="muted">No media</span>
-                </div>
+                <div className="editor-stage-empty" aria-hidden="true" />
             )}
 
-            {items
-                .filter((item) => item.enabled)
-                .map((item) => {
+            {mediaUrl
+                ? items
+                      .filter((item) => item.enabled)
+                      .map((item) => {
                     const isSelected = selected === item.metric;
 
                     return (
@@ -77,7 +76,8 @@ export function EditorStage({
                             />
                         </button>
                     );
-                })}
+                      })
+                : null}
         </div>
     );
 }

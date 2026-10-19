@@ -4,7 +4,9 @@ use std::time::{Duration, Instant};
 use crate::devices::device_id::DeviceId;
 use crate::schemas::overlay_schemas::OverlayConfig;
 use crate::services::device_service::DeviceService;
+use crate::services::frame_fit;
 use crate::services::gif_cutter::GifFrame;
+use crate::services::loading_frame;
 use crate::services::overlay_service::OverlayService;
 
 use image::RgbaImage;
@@ -14,6 +16,7 @@ pub(crate) const STATS_INTERVAL: Duration = Duration::from_secs(2);
 pub enum GifLaunch {
     Clip { width: u32, height: u32 },
     Animated(Vec<GifFrame>),
+    Still { background: RgbaImage },
     Empty,
 }
 
@@ -34,13 +37,74 @@ impl DisplayService {
         self.overlay_service.set_config(config);
     }
 
-    pub fn render_image(&mut self, image: &RgbaImage, device_id: &DeviceId) {
-        if let Some(device) = self.device_serv.registry().get_mut(device_id) {
-            device
-                .adapter
-                .send_frame(image)
-                .expect("Failed to send frame");
+    pub fn show_loading_screen(&mut self, device_id: &DeviceId) {
+        let Some((width, height)) = self.device_dimensions(device_id) else {
+            return;
+        };
+
+        let frame = loading_frame::render(width, height);
+
+        if self.send_frame_fitted(&frame, device_id).is_err() {
+            eprintln!("Failed to send loading frame to display");
         }
+    }
+
+    pub fn show_black_screen(&mut self, device_id: &DeviceId) {
+        let Some((width, height)) = self.device_dimensions(device_id) else {
+            return;
+        };
+
+        let frame = frame_fit::blank_frame(width, height);
+
+        if self.send_frame_fitted(&frame, device_id).is_err() {
+            eprintln!("Failed to send black frame to display");
+        }
+    }
+
+    pub fn send_image(&mut self, image: &RgbaImage, device_id: &DeviceId) {
+        let _ = self.send_frame_fitted(image, device_id);
+    }
+
+    pub fn present_still_with_stats(&mut self, background: &RgbaImage, device_id: &DeviceId) {
+        let composed = self.overlay_service.compose(background);
+        self.send_image(&composed, device_id);
+    }
+
+    fn send_frame_fitted(
+        &mut self,
+        image: &RgbaImage,
+        device_id: &DeviceId,
+    ) -> Result<(), String> {
+        let Some(device) = self.device_serv.registry().get_mut(device_id) else {
+            return Ok(());
+        };
+
+        let fitted = frame_fit::fit_cover(image, device.info.width, device.info.height);
+
+        device
+            .adapter
+            .send_frame(&fitted)
+            .map_err(|error| format!("Failed to send frame: {error:?}"))
+    }
+
+    fn device_dimensions(&mut self, device_id: &DeviceId) -> Option<(u32, u32)> {
+        self.device_serv
+            .registry()
+            .get(device_id)
+            .map(|device| (device.info.width, device.info.height))
+    }
+
+    fn fit_gif_frames(mut decoded: Vec<GifFrame>, width: u32, height: u32) -> Vec<GifFrame> {
+        for frame in &mut decoded {
+            frame.image = frame_fit::fit_cover(&frame.image, width, height);
+        }
+
+        decoded
+    }
+
+    pub fn render_image(&mut self, image: &RgbaImage, device_id: &DeviceId) {
+        self.show_loading_screen(device_id);
+        self.send_image(image, device_id);
     }
 
     pub fn render_gif(
@@ -57,11 +121,19 @@ impl DisplayService {
         bytes: &[u8],
         device_id: &DeviceId,
     ) -> Result<GifLaunch, String> {
+        self.show_loading_screen(device_id);
+
         let decoded = self.overlay_service.cut(bytes)?;
 
         if decoded.is_empty() || self.device_serv.registry().get(device_id).is_none() {
             return Ok(GifLaunch::Empty);
         }
+
+        let Some((width, height)) = self.device_dimensions(device_id) else {
+            return Ok(GifLaunch::Empty);
+        };
+
+        let decoded = Self::fit_gif_frames(decoded, width, height);
 
         let frames: Vec<&RgbaImage> = decoded.iter().map(|frame| &frame.image).collect();
         let delays: Vec<Duration> = decoded.iter().map(|frame| frame.delay).collect();
@@ -80,13 +152,47 @@ impl DisplayService {
         };
 
         if published {
-            let width = decoded[0].image.width();
-            let height = decoded[0].image.height();
-
             return Ok(GifLaunch::Clip { width, height });
         }
 
         Ok(GifLaunch::Animated(decoded))
+    }
+
+    pub fn launch_still(
+        &mut self,
+        image: RgbaImage,
+        device_id: &DeviceId,
+    ) -> Result<GifLaunch, String> {
+        self.show_loading_screen(device_id);
+
+        let Some((width, height)) = self.device_dimensions(device_id) else {
+            return Ok(GifLaunch::Empty);
+        };
+
+        let fitted = frame_fit::fit_cover(&image, width, height);
+        let frames = [&fitted];
+        let delays = [Duration::from_secs(3600)];
+
+        let published = {
+            let Some(device) = self.device_serv.registry().get_mut(device_id) else {
+                return Ok(GifLaunch::Empty);
+            };
+
+            device.adapter.reset_preloaded();
+
+            device
+                .adapter
+                .publish_clip(&frames, &delays)
+                .map_err(|error| format!("Failed to publish still image: {error:?}"))?
+        };
+
+        if published {
+            return Ok(GifLaunch::Clip { width, height });
+        }
+
+        Ok(GifLaunch::Still {
+            background: fitted,
+        })
     }
 
     pub fn publish_stats_overlay(
@@ -117,7 +223,31 @@ impl DisplayService {
                 self.play_clip(device_id, width, height, repeats, presented)
             }
             GifLaunch::Animated(frames) => self.play_frames(&frames, device_id, repeats, &|| false),
+            GifLaunch::Still { background } => self.play_still_loop(&background, device_id, repeats),
         }
+    }
+
+    fn play_still_loop(
+        &mut self,
+        background: &RgbaImage,
+        device_id: &DeviceId,
+        repeats: Option<usize>,
+    ) -> Result<(), String> {
+        let mut cycles = 0;
+
+        loop {
+            self.present_still_with_stats(background, device_id);
+
+            cycles += 1;
+
+            if repeats.is_some_and(|limit| cycles >= limit) {
+                break;
+            }
+
+            std::thread::sleep(STATS_INTERVAL);
+        }
+
+        Ok(())
     }
 
     fn play_clip(
@@ -207,7 +337,7 @@ impl DisplayService {
 
                 let frame = self.overlay_service.compose(&gif_frame.image);
 
-                self.render_image(&frame, device_id);
+                self.send_image(&frame, device_id);
 
                 next += gif_frame.delay;
 
@@ -399,17 +529,19 @@ mod tests {
 
         let mut service = create_test_service(Arc::clone(&sent_frames));
 
-        let image = RgbaImage::from_pixel(480, 1920, Rgba([255, 0, 0, 255]));
+        let info = get_test_device_info();
+        let image = RgbaImage::from_pixel(info.width, info.height, Rgba([255, 0, 0, 255]));
 
-        let device_id = get_test_device_info().id.clone();
+        let device_id = info.id.clone();
 
         service.render_image(&image, &device_id);
 
         let frames = sent_frames.lock().unwrap();
+        let frame_bytes = (info.width * info.height * 4) as usize;
 
-        assert_eq!(frames.len(), 1);
+        assert_eq!(frames.len(), 2, "loading frame and still image");
 
-        assert_eq!(frames[0].len(), 480 * 1920 * 4);
+        assert_eq!(frames[1].len(), frame_bytes);
     }
 
     #[test]
@@ -482,11 +614,18 @@ mod tests {
 
         let frames = sent_frames.lock().unwrap();
 
-        assert_eq!(frames.len(), 2, "Expected 2 GIF frames to be rendered");
+        let info = get_test_device_info();
+        let frame_bytes = (info.width * info.height * 4) as usize;
 
-        assert_eq!(frames[0].len(), 2 * 2 * 4);
+        assert_eq!(
+            frames.len(),
+            3,
+            "Expected loading frame plus 2 GIF frames to be rendered"
+        );
 
-        assert_eq!(frames[1].len(), 2 * 2 * 4);
+        assert_eq!(frames[1].len(), frame_bytes);
+
+        assert_eq!(frames[2].len(), frame_bytes);
     }
 
     #[test]
@@ -519,9 +658,9 @@ mod tests {
 
         let frames = sent_frames.lock().unwrap();
 
-        assert_eq!(frames.len(), 1);
+        assert_eq!(frames.len(), 2, "loading frame and composed GIF frame");
 
-        let has_text = frames[0]
+        let has_text = frames[1]
             .chunks(4)
             .any(|pixel| pixel[0] > 200 && pixel[1] > 200 && pixel[2] > 200);
 
@@ -704,7 +843,7 @@ mod tests {
         );
         assert_eq!(clips.lock().unwrap().as_slice(), &[2]);
         assert_eq!(*overlays.lock().unwrap(), 1);
-        assert_eq!(*sent_frames.lock().unwrap(), 0);
+        assert_eq!(*sent_frames.lock().unwrap(), 1, "loading frame before clip publish");
     }
 
     #[test]

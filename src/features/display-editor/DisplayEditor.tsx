@@ -11,6 +11,7 @@ import { useDisplayPreview } from "./hooks/useDisplayPreview";
 import { useEditorMedia } from "./hooks/useEditorMedia";
 import { useOverlayItemPatch } from "./hooks/useOverlayItemPatch";
 import { useStatDrag } from "./hooks/useStatDrag";
+import { hasPreviewMedia } from "./lib/preview-media";
 import "./styles/display-editor.css";
 
 export interface DisplayEditorProps {
@@ -50,6 +51,7 @@ export function DisplayEditor({
     });
 
     const active = items.find((item) => item.metric === selected);
+    const canPreview = hasPreviewMedia(mediaUrl, mediaBytes, mediaType);
 
     return (
         <div className="editor">
@@ -80,7 +82,7 @@ export function DisplayEditor({
                 active={active}
                 previewScale={scale}
                 previewing={previewing}
-                canPreview={Boolean(mediaBytes)}
+                canPreview={canPreview}
                 customFamilies={fonts.families}
                 isDownloaded={fonts.isDownloaded}
                 loadingFontId={fonts.loadingId}
@@ -90,7 +92,7 @@ export function DisplayEditor({
                 onToggle={(metric, enabled) => patchItem(metric, { enabled })}
                 onPatch={patchItem}
                 onPickMedia={pickMedia}
-                onPreview={() => void sendPreview(mediaBytes, mediaType)}
+                onPreview={() => void sendPreview(mediaUrl, mediaBytes, mediaType)}
             />
         </div>
     );
